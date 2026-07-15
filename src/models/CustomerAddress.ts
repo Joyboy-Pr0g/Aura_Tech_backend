@@ -43,6 +43,9 @@ export class CustomerAddress {
   @Column({ type: 'varchar', nullable: true, name: 'postal_code' })
   postal_code: string | null;
 
+  @Column({ type: 'varchar', default: 'Yemen' })
+  country: string;
+
   @Column({ type: 'varchar', default: 'both' })
   type: AddressType;
 

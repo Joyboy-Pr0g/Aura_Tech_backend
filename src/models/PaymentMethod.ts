@@ -11,6 +11,9 @@ export class PaymentMethod {
   @Column({ type: 'varchar' })
   name: string;
 
+  @Column({ type: 'varchar', name: 'account_holder_name' })
+  account_holder_name: string;
+
   @Column({ type: 'varchar', name: 'bank_name' })
   bank_name: string;
 
@@ -19,6 +22,9 @@ export class PaymentMethod {
 
   @Column({ type: 'varchar', nullable: true })
   iban: string | null;
+
+  @Column({ type: 'varchar', nullable: true, name: 'swift_code' })
+  swift_code: string | null;
 
   @Column({ type: 'text', nullable: true })
   description: string | null;

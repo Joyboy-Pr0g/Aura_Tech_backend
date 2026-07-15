@@ -5,7 +5,7 @@ import { protect } from '../middleware/auth';
 import { authorize } from '../middleware/rbac';
 import { validateRequest } from '../middleware/validation';
 import { Role } from '../types/rbac';
-import { cartItemSchema } from '../validators/order.validator';
+import { cartItemSchema, editQuantitySchema, } from '../validators/order.validator';
 
 const router = Router();
 const ctrl = container.resolve(CartController);
@@ -14,6 +14,7 @@ router.use(protect, authorize([Role.CUSTOMER]));
 
 router.get('/', ctrl.getCart);
 router.post('/items', validateRequest(cartItemSchema), ctrl.addItem);
+router.post('/edit-quantity', validateRequest(editQuantitySchema), ctrl.editQuantity);
 router.delete('/items/:itemId', ctrl.removeItem);
 router.delete('/', ctrl.clearCart);
 

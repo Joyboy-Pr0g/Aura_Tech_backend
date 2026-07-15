@@ -18,15 +18,26 @@ import { CartService } from '../services/cart/CartService';
 import { OrderService } from '../services/order/OrderService';
 import { PaymentService } from '../services/payment/PaymentService';
 import { AddressService } from '../services/address/AddressService';
+import { EngagementService } from '../services/engagement/EngagementService';
+import { AdminDashboardService } from '../services/admin/AdminDashboardService';
+import { AdminCategoryService } from '../services/admin/AdminCategoryService';
+import { AdminProductService } from '../services/admin/AdminProductService';
 
 // Controllers
 import { AuthController } from '../controllers/auth/AuthController';
+import { AdminDashboardController } from '../controllers/admin/Admin.DashboardController';
+import { AdminUserController } from '../controllers/admin/Admin.UserController';
+import { AdminProductController } from '../controllers/admin/Admin.ProductController';
+import { AdminOrderController } from '../controllers/admin/Admin.OrderController';
+import { AdminCategoryController } from '../controllers/admin/Admin.CategoryController';
+import { AdminPaymentController } from '../controllers/admin/Admin.PaymentController';
 import { CategoryController } from '../controllers/category/CategoryController';
 import { ProductController } from '../controllers/product/ProductController';
 import { CartController } from '../controllers/cart/CartController';
 import { OrderController } from '../controllers/order/OrderController';
 import { PaymentController } from '../controllers/payment/PaymentController';
 import { AddressController } from '../controllers/address/AddressController';
+import { EngagementController } from '../controllers/engagement/EngagementController';
 
 export function registerDependencies(): void {
   // ─── Repositories ────────────────────────────────────────────────────────
@@ -46,6 +57,10 @@ export function registerDependencies(): void {
   container.registerSingleton(OrderService, OrderService);
   container.registerSingleton(PaymentService, PaymentService);
   container.registerSingleton(AddressService, AddressService);
+  container.registerSingleton(EngagementService, EngagementService);
+  container.registerSingleton(AdminDashboardService, AdminDashboardService);
+  container.registerSingleton(AdminCategoryService, AdminCategoryService);
+  container.registerSingleton(AdminProductService, AdminProductService);
 
   // ─── Controllers ─────────────────────────────────────────────────────────
   container.registerSingleton(AuthController, AuthController);
@@ -55,4 +70,11 @@ export function registerDependencies(): void {
   container.registerSingleton(OrderController, OrderController);
   container.registerSingleton(PaymentController, PaymentController);
   container.registerSingleton(AddressController, AddressController);
+  container.registerSingleton(EngagementController, EngagementController);
+  container.registerSingleton(AdminDashboardController, AdminDashboardController);
+  container.registerSingleton(AdminUserController, AdminUserController);
+  container.registerSingleton(AdminProductController, AdminProductController);
+  container.registerSingleton(AdminOrderController, AdminOrderController);
+  container.registerSingleton(AdminCategoryController, AdminCategoryController);
+  container.registerSingleton(AdminPaymentController, AdminPaymentController);
 }

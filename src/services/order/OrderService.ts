@@ -8,6 +8,7 @@ import { IOrderRepository } from '../../interfaces/repositories/IOrderRepository
 import { IAddressRepository } from '../../interfaces/repositories/IAddressRepository';
 import { REPOSITORY_TOKENS } from '../../di/repository.tokens';
 import { AppError } from '../../core/errors/AppError';
+import { decodeCreatedAtIdCursor } from '../../utils/cursorPagination';
 
 @injectable()
 export class OrderService {
@@ -116,9 +117,12 @@ export class OrderService {
     return order;
   }
 
-  async getMyOrders(customerId: string, page: number, limit: number) {
-    const [orders, total] = await this.orderRepo.findByCustomerId(customerId, page, limit);
-    return { orders, total, page, limit };
+  async getMyOrders(customerId: string, limit: number, cursorRaw?: string) {
+    const decoded = decodeCreatedAtIdCursor(cursorRaw);
+    if (decoded === 'invalid') {
+      throw new AppError(400, 'Invalid or malformed cursor');
+    }
+    return this.orderRepo.findByCustomerId(customerId, limit, decoded);
   }
 
   async getOrderById(id: string, customerId?: string): Promise<Order> {
@@ -169,8 +173,15 @@ export class OrderService {
     }
   }
 
-  async getAdminOrders(filters: { status?: OrderStatus; page: number; limit: number }) {
-    const [orders, total] = await this.orderRepo.findAll(filters);
-    return { orders, total, page: filters.page, limit: filters.limit };
+  async getAdminOrders(filters: { status?: OrderStatus; limit: number; cursor?: string }) {
+    const decoded = decodeCreatedAtIdCursor(filters.cursor);
+    if (decoded === 'invalid') {
+      throw new AppError(400, 'Invalid or malformed cursor');
+    }
+    return this.orderRepo.findAll({
+      status: filters.status,
+      limit: filters.limit,
+      cursor: decoded,
+    });
   }
 }

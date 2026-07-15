@@ -20,3 +20,22 @@ export function validateRequest(schema: Joi.Schema) {
     next();
   };
 }
+
+export function validateQuery(schema: Joi.Schema) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const { error, value } = schema.validate(req.query, {
+      abortEarly: false,
+      stripUnknown: true,
+      convert: true,
+    });
+
+    if (error) {
+      const message = error.details.map((d) => d.message).join('; ');
+      res.status(400).json(APIResponse.error(message));
+      return;
+    }
+
+    req.validatedData = value;
+    next();
+  };
+}

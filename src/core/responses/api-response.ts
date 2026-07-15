@@ -4,7 +4,7 @@ export class APIResponse<T = unknown> {
   data?: T;
   next_cursor?: string | null;
   has_more?: boolean;
-  error?: { message: string };
+  error?: { message: string; details?: unknown };
 
   private constructor(partial: Partial<APIResponse<T>>) {
     this.success = partial.success!;
@@ -18,23 +18,26 @@ export class APIResponse<T = unknown> {
   static success<T>(
     message: string,
     data?: T,
-    nextCursor?: string | null,
-    hasMore?: boolean,
+    extras?: { next_cursor?: string | null; has_more?: boolean },
   ): APIResponse<T> {
     return new APIResponse<T>({
       success: true,
       message,
       data,
-      next_cursor: nextCursor ?? null,
-      has_more: hasMore ?? false,
+      ...(extras
+        ? {
+            next_cursor: extras.next_cursor ?? null,
+            has_more: extras.has_more ?? false,
+          }
+        : {}),
     });
   }
 
-  static error(message: string): APIResponse<null> {
+  static error(message: string, details?: unknown): APIResponse<null> {
     return new APIResponse<null>({
       success: false,
       message,
-      error: { message },
+      error: { message, details },
     });
   }
 }

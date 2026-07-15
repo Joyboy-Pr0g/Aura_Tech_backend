@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe';
 import { REPOSITORY_TOKENS } from '../../di/repository.tokens';
-import { IAuthRepository } from '../../interfaces/repositories/IAuthRepository';
+import { IAuthRepository, SafeUser } from '../../interfaces/repositories/IAuthRepository';
 import { AppError } from '../../core/errors/AppError';
 import { hashPassword, comparePassword } from '../../utils/password';
 import { generateToken, getTokenRemainingTtl } from '../../utils/jwt';
@@ -8,7 +8,7 @@ import { getRedisClient } from '../../config/redis';
 import { Role, UserStatus } from '../../types/rbac';
 import { User } from '../../models/User';
 
-type SafeUser = Omit<User, 'password_hash'>;
+
 
 @injectable()
 export class AuthService {

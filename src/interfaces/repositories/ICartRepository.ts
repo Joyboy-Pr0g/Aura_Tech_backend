@@ -6,6 +6,7 @@ export interface ICartRepository {
   findOrCreate(customerId: string): Promise<Cart>;
   findItemById(itemId: string): Promise<CartItem | null>;
   upsertItem(cartId: string, productId: string, variantId: string | null, quantity: number, priceAtTime: number): Promise<CartItem>;
+  editQuantity(itemId: string, quantity: number): Promise<void>;
   removeItem(itemId: string): Promise<void>;
   clearCart(cartId: string): Promise<void>;
   markConverted(cartId: string): Promise<void>;

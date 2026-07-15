@@ -11,7 +11,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME || 'aura_tech',
   entities: [path.join(__dirname, '../models/*.{ts,js}')],
   migrations: [path.join(__dirname, '../database/migrations/*.{ts,js}')],
-  synchronize: process.env.NODE_ENV === 'development' ? true : false,
+  synchronize: false,
   logging: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : false,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   extra: {

@@ -1,7 +1,6 @@
 import { injectable, inject } from 'tsyringe';
 import { AppDataSource } from '../../config/database';
 import { Product } from '../../models/Product';
-import { ProductVariant } from '../../models/ProductVariant';
 import { ICartRepository } from '../../interfaces/repositories/ICartRepository';
 import { REPOSITORY_TOKENS } from '../../di/repository.tokens';
 import { AppError } from '../../core/errors/AppError';
@@ -45,6 +44,16 @@ export class CartService {
     }
 
     return this.cartRepo.upsertItem(cart.id, productId, variantId, quantity, price);
+  }
+
+  async editQuantity(customerId: string, itemId: string, quantity: number): Promise<void> {
+    const cart = await this.cartRepo.findByCustomerId(customerId);
+    if (!cart) throw new AppError(404, 'Cart not found');
+
+    const item = await this.cartRepo.findItemById(itemId);
+    if (!item || item.cart_id !== cart.id) throw new AppError(404, 'Item not found in your cart');
+
+    await this.cartRepo.editQuantity(itemId, quantity);
   }
 
   async removeItem(customerId: string, itemId: string): Promise<void> {

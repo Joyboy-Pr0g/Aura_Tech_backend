@@ -3,7 +3,14 @@ import { AppDataSource } from '../../config/database';
 import { Order, OrderStatus } from '../../models/Order';
 import { OrderItem } from '../../models/OrderItem';
 import { OrderStatusHistory } from '../../models/OrderStatusHistory';
-import { IOrderRepository, CreateOrderDto } from '../../interfaces/repositories/IOrderRepository';
+import { IOrderRepository, CreateOrderDto, OrderFilters } from '../../interfaces/repositories/IOrderRepository';
+import {
+  applyCreatedAtIdCursorDesc,
+  CursorListResult,
+  DecodedCursor,
+  DEFAULT_LIMIT,
+  paginateByCursor,
+} from '../../utils/cursorPagination';
 
 @injectable()
 export class OrderRepository implements IOrderRepository {
@@ -29,28 +36,47 @@ export class OrderRepository implements IOrderRepository {
     return this.repo.findOne({ where: { order_number: orderNumber } });
   }
 
-  async findByCustomerId(customerId: string, page: number, limit: number): Promise<[Order[], number]> {
-    return this.repo.findAndCount({
-      where: { customer_id: customerId },
-      relations: ['items', 'payment'],
-      order: { created_at: 'DESC' },
-      take: limit,
-      skip: (page - 1) * limit,
-    });
-  }
-
-  async findAll(filters: { status?: OrderStatus; page: number; limit: number }): Promise<[Order[], number]> {
-    const qb = this.repo.createQueryBuilder('o')
+  async findByCustomerId(
+    customerId: string,
+    limit: number,
+    cursor: DecodedCursor | null,
+  ): Promise<CursorListResult<Order>> {
+    const qb = this.repo
+      .createQueryBuilder('o')
       .leftJoinAndSelect('o.items', 'items')
       .leftJoinAndSelect('o.payment', 'payment')
-      .leftJoinAndSelect('o.customer', 'customer')
-      .orderBy('o.created_at', 'DESC')
-      .take(filters.limit)
-      .skip((filters.page - 1) * filters.limit);
+      .where('o.customer_id = :customerId', { customerId });
 
-    if (filters.status) qb.where('o.status = :status', { status: filters.status });
+    applyCreatedAtIdCursorDesc(qb, 'o', cursor);
 
-    return qb.getManyAndCount();
+    qb.orderBy('o.created_at', 'DESC')
+      .addOrderBy('o.id', 'DESC')
+      .take(limit + 1);
+
+    const rows = await qb.getMany();
+    return paginateByCursor(rows, limit);
+  }
+
+  async findAll(filters: OrderFilters): Promise<CursorListResult<Order>> {
+    const { status, limit = DEFAULT_LIMIT, cursor } = filters;
+    const qb = this.repo
+      .createQueryBuilder('o')
+      .leftJoinAndSelect('o.items', 'items')
+      .leftJoinAndSelect('o.payment', 'payment')
+      .leftJoinAndSelect('o.customer', 'customer');
+
+    if (status) {
+      qb.andWhere('o.status = :status', { status });
+    }
+
+    applyCreatedAtIdCursorDesc(qb, 'o', cursor ?? null);
+
+    qb.orderBy('o.created_at', 'DESC')
+      .addOrderBy('o.id', 'DESC')
+      .take(limit + 1);
+
+    const rows = await qb.getMany();
+    return paginateByCursor(rows, limit);
   }
 
   async create(dto: CreateOrderDto): Promise<Order> {
@@ -107,5 +133,9 @@ export class OrderRepository implements IOrderRepository {
       change_reason: reason,
     });
     await this.historyRepo.save(entry);
+  }
+
+  async getTotalOrderCount(): Promise<number> {
+    return this.repo.count();
   }
 }

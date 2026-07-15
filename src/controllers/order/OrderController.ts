@@ -25,10 +25,15 @@ export class OrderController {
 
   getMyOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const page = Number(req.query.page) || 1;
       const limit = Math.min(Number(req.query.limit) || 10, 50);
-      const result = await this.orderService.getMyOrders(req.user!.id, page, limit);
-      res.json(APIResponse.success('Orders retrieved', result));
+      const cursor = req.query.cursor as string | undefined;
+      const page = await this.orderService.getMyOrders(req.user!.id, limit, cursor);
+      res.json(
+        APIResponse.success('Orders retrieved', page.items, {
+          next_cursor: page.next_cursor,
+          has_more: page.has_more,
+        }),
+      );
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
     }
@@ -46,11 +51,16 @@ export class OrderController {
   // Admin
   listAllOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const page = Number(req.query.page) || 1;
       const limit = Math.min(Number(req.query.limit) || 20, 100);
+      const cursor = req.query.cursor as string | undefined;
       const status = req.query.status as any;
-      const result = await this.orderService.getAdminOrders({ status, page, limit });
-      res.json(APIResponse.success('Orders retrieved', result));
+      const page = await this.orderService.getAdminOrders({ status, limit, cursor });
+      res.json(
+        APIResponse.success('Orders retrieved', page.items, {
+          next_cursor: page.next_cursor,
+          has_more: page.has_more,
+        }),
+      );
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
     }

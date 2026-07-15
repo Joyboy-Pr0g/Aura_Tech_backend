@@ -3,6 +3,13 @@ import { AppDataSource } from '../../config/database';
 import { Payment, PaymentStatus } from '../../models/Payment';
 import { PaymentMethod } from '../../models/PaymentMethod';
 import { IPaymentRepository } from '../../interfaces/repositories/IPaymentRepository';
+import {
+  CursorListResult,
+  DEFAULT_LIMIT,
+  applyCreatedAtIdCursorDesc,
+  paginateByCursor,
+} from '../../utils/cursorPagination';
+import { PaymentFilters } from '../../interfaces/repositories/IPaymentRepository';
 
 @injectable()
 export class PaymentRepository implements IPaymentRepository {
@@ -17,14 +24,42 @@ export class PaymentRepository implements IPaymentRepository {
     return this.repo.findOne({ where: { order_id: orderId } });
   }
 
-  async findPending(page: number, limit: number): Promise<[Payment[], number]> {
-    return this.repo.findAndCount({
-      where: { status: 'pending' },
-      relations: ['order', 'submitted_by_customer'],
-      order: { submitted_at: 'ASC' },
-      take: limit,
-      skip: (page - 1) * limit,
-    });
+  async findMany(filters: PaymentFilters): Promise<CursorListResult<Payment>> {
+    const { limit = DEFAULT_LIMIT, cursor } = filters;
+
+    const qb = this.repo
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.order', 'order')
+      .leftJoinAndSelect('p.submitted_by_customer', 'customer')
+      .leftJoinAndSelect('p.payment_method', 'payment_method');
+
+    if (filters.order_id) {
+      qb.andWhere('p.order_id = :order_id', { order_id: filters.order_id });
+    }
+
+    if (filters.payment_method_id) {
+      qb.andWhere('p.payment_method_id = :payment_method_id', {
+        payment_method_id: filters.payment_method_id,
+      });
+    }
+
+    if (filters.status) {
+      qb.andWhere('p.status = :status', { status: filters.status });
+    }
+
+    if (filters.min_amount !== undefined) {
+      qb.andWhere('p.amount >= :min_amount', { min_amount: filters.min_amount });
+    }
+
+    if (filters.max_amount !== undefined) {
+      qb.andWhere('p.amount <= :max_amount', { max_amount: filters.max_amount });
+    }
+
+    applyCreatedAtIdCursorDesc(qb, 'p', cursor ?? null);
+    qb.orderBy('p.created_at', 'DESC').addOrderBy('p.id', 'DESC').take(limit + 1);
+
+    const rows = await qb.getMany();
+    return paginateByCursor(rows, limit);
   }
 
   async create(dto: { orderId: string; amount: number; submittedByCustomerId: string; submittedAt: Date }): Promise<Payment> {
@@ -77,5 +112,10 @@ export class PaymentRepository implements IPaymentRepository {
 
   async softDeleteMethod(id: string): Promise<void> {
     await this.methodRepo.softDelete(id);
+  }
+
+  async getTotalPayment(): Promise<number> {
+    const result = await this.repo.createQueryBuilder('payment').select('SUM(payment.amount)').getRawOne();
+    return result.sum || 0;
   }
 }

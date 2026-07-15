@@ -10,6 +10,7 @@ import {
   DeleteDateColumn,
   Index,
 } from 'typeorm';
+import { Product } from './Product';
 
 @Entity('categories')
 export class Category {
@@ -43,8 +44,13 @@ export class Category {
   @JoinColumn({ name: 'parent_category_id' })
   parent: Category | null;
 
+  product_count: number = 0;
+
   @OneToMany(() => Category, (cat) => cat.parent)
   children: Category[];
+
+  @OneToMany(() => Product, (product) => product.category)
+  products: Product[];
 
   @DeleteDateColumn({ name: 'deleted_at', nullable: true })
   deleted_at: Date | null;

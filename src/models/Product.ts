@@ -13,6 +13,7 @@ import {
 import { Category } from './Category';
 import { User } from './User';
 import { ProductVariant } from './ProductVariant';
+import { Wishlist } from './Wishlist';
 
 export interface ProductImage {
   url: string;
@@ -29,9 +30,17 @@ export class Product {
   @Index()
   category_id: string;
 
-  @ManyToOne(() => Category)
+  @ManyToOne(() => Category, (category) => category.products)
   @JoinColumn({ name: 'category_id' })
   category: Category;
+
+  @Column({ type: 'uuid', nullable: true, name: 'sub_category_id' })
+  @Index()
+  sub_category_id: string | null;
+
+  @ManyToOne(() => Category, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'sub_category_id' })
+  sub_category: Category | null;
 
   @Column({ type: 'varchar', unique: true })
   slug: string;
@@ -64,12 +73,25 @@ export class Product {
   @Column({ type: 'uuid', nullable: true, name: 'created_by_id' })
   created_by_id: string | null;
 
+  @Column({ type: 'uuid', nullable: true, name: 'updated_by_id' })
+  updated_by_id: string | null;
+
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'created_by_id' })
   created_by: User | null;
 
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'updated_by_id' })
+  updated_by: User | null;
+
   @OneToMany(() => ProductVariant, (v) => v.product)
   variants: ProductVariant[];
+
+  @OneToMany(() => Wishlist, (wishlist) => wishlist.product)
+  wishlists: Wishlist[];
+
+  /** Populated in list queries when a customer id is provided — not a DB column */
+  is_wishlisted?: boolean;
 
   @DeleteDateColumn({ name: 'deleted_at', nullable: true })
   deleted_at: Date | null;

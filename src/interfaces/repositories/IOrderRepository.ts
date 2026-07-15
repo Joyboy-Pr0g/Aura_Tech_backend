@@ -1,4 +1,5 @@
 import { Order, OrderStatus } from '../../models/Order';
+import { DecodedCursor, CursorListResult } from '../../utils/cursorPagination';
 
 export interface CreateOrderDto {
   customer_id: string;
@@ -19,12 +20,23 @@ export interface CreateOrderDto {
   notes: string | null;
 }
 
+export interface OrderFilters {
+  status?: OrderStatus;
+  limit?: number;
+  cursor?: DecodedCursor | null;
+}
+
 export interface IOrderRepository {
   findById(id: string): Promise<Order | null>;
   findByOrderNumber(orderNumber: string): Promise<Order | null>;
-  findByCustomerId(customerId: string, page: number, limit: number): Promise<[Order[], number]>;
-  findAll(filters: { status?: OrderStatus; page: number; limit: number }): Promise<[Order[], number]>;
+  findByCustomerId(
+    customerId: string,
+    limit: number,
+    cursor: DecodedCursor | null,
+  ): Promise<CursorListResult<Order>>;
+  findAll(filters: OrderFilters): Promise<CursorListResult<Order>>;
   create(dto: CreateOrderDto): Promise<Order>;
   updateStatus(id: string, status: OrderStatus): Promise<void>;
   recordStatusHistory(orderId: string, previous: OrderStatus | null, next: OrderStatus, changedById: string | null, reason: string | null): Promise<void>;
+  getTotalOrderCount(): Promise<number>;
 }

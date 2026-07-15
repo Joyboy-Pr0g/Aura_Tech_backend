@@ -2,12 +2,13 @@ import { injectable, inject } from 'tsyringe';
 import { AppDataSource } from '../../config/database';
 import { Product } from '../../models/Product';
 import { ProductVariant } from '../../models/ProductVariant';
-import { IPaymentRepository } from '../../interfaces/repositories/IPaymentRepository';
+import { IPaymentRepository, PaymentFilters } from '../../interfaces/repositories/IPaymentRepository';
 import { IOrderRepository } from '../../interfaces/repositories/IOrderRepository';
 import { REPOSITORY_TOKENS } from '../../di/repository.tokens';
 import { uploadToCloudinary, deleteFromCloudinary } from '../../config/cloudinary';
 import { AppError } from '../../core/errors/AppError';
 import { Payment } from '../../models/Payment';
+import { decodeCreatedAtIdCursor } from '../../utils/cursorPagination';
 
 @injectable()
 export class PaymentService {
@@ -94,9 +95,13 @@ export class PaymentService {
     await this.paymentRepo.updateStatus(paymentId, 'rejected', adminId, reason);
   }
 
-  async getPendingPayments(page: number, limit: number) {
-    const [payments, total] = await this.paymentRepo.findPending(page, limit);
-    return { payments, total, page, limit };
+  async getPayments(filters: Omit<PaymentFilters, 'cursor'> & { cursor?: string }) {
+    const decoded = decodeCreatedAtIdCursor(filters.cursor);
+    if (decoded === 'invalid') {
+      throw new AppError(400, 'Invalid or malformed cursor');
+    }
+
+    return this.paymentRepo.findMany({ ...filters, cursor: decoded });
   }
 
   async getPaymentByOrder(orderId: string, customerId?: string): Promise<Payment> {

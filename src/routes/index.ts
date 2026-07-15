@@ -6,6 +6,8 @@ import cartRoutes from './cart.routes';
 import orderRoutes from './order.routes';
 import paymentRoutes from './payment.routes';
 import addressRoutes from './address.routes';
+import engagementRoutes from './engagement.routes';
+import adminRoutes from './admin';
 
 const router = Router();
 
@@ -16,5 +18,8 @@ router.use('/cart', cartRoutes);
 router.use('/orders', orderRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/addresses', addressRoutes);
+// Admin before engagement: engagement is mounted at `/` and must not intercept /admin/*
+router.use('/admin', adminRoutes);
+router.use('/', engagementRoutes);
 
 export default router;

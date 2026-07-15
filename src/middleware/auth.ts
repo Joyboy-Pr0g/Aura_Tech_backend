@@ -40,3 +40,23 @@ export async function protect(req: Request, res: Response, next: NextFunction): 
     res.status(401).json(APIResponse.error('Invalid or expired token'));
   }
 }
+
+export function optionalProtect(req: Request, _res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    next();
+    return;
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const payload = verifyToken(token);
+    req.user = {
+      id: payload.user_id,
+      email: payload.email,
+      role: payload.role,
+    };
+    next();
+  } catch {
+    next();
+  }
+}

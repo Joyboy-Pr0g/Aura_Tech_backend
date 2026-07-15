@@ -5,6 +5,7 @@ import {
 } from 'typeorm';
 import { Order } from './Order';
 import { User } from './User';
+import { PaymentMethod } from './PaymentMethod';
 
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'refunded';
 
@@ -23,6 +24,13 @@ export class Payment {
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   amount: number;
+
+  @Column({ type: 'uuid', nullable: true, name: 'payment_method_id' })
+  payment_method_id: string | null;
+
+  @ManyToOne(() => PaymentMethod, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'payment_method_id' })
+  payment_method: PaymentMethod | null;
 
   @Column({ type: 'varchar', nullable: true, name: 'receipt_document_url' })
   receipt_document_url: string | null;

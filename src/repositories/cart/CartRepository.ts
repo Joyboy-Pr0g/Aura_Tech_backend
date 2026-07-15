@@ -61,6 +61,10 @@ export class CartRepository implements ICartRepository {
     return this.itemRepo.save(newItem);
   }
 
+  async editQuantity(itemId: string, quantity: number): Promise<void> {
+    await this.itemRepo.update(itemId, { quantity });
+  }
+
   async removeItem(itemId: string): Promise<void> {
     await this.itemRepo.delete(itemId);
   }
