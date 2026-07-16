@@ -15,6 +15,11 @@ export class AuthRepository implements IAuthRepository {
   async findByEmail(email: string): Promise<User | null> {
     return this.repo.findOne({ where: { email, deleted_at: IsNull() } });
   }
+
+  async findByPhone(phone: string): Promise<User | null> {
+    return this.repo.findOne({ where: { phone, deleted_at: IsNull() } });
+  }
+
   async findById(id: string): Promise<User | null> {
     return this.repo.findOne({ where: { id }, withDeleted: true });
   }

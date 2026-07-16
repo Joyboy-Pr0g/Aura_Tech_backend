@@ -17,12 +17,22 @@ export class PaymentService {
     @inject(REPOSITORY_TOKENS.IOrderRepository) private orderRepo: IOrderRepository,
   ) {}
 
-  async submitPayment(customerId: string, orderId: string, file: Express.Multer.File): Promise<Payment> {
+  async submitPayment(
+    customerId: string,
+    orderId: string,
+    paymentMethodId: string,
+    file: Express.Multer.File,
+  ): Promise<Payment> {
     const order = await this.orderRepo.findById(orderId);
     if (!order) throw new AppError(404, 'Order not found');
     if (order.customer_id !== customerId) throw new AppError(403, 'Access denied');
     if (order.status !== 'pending_payment') {
       throw new AppError(400, `Order is ${order.status}, cannot submit payment`);
+    }
+
+    const paymentMethod = await this.paymentRepo.findMethodById(paymentMethodId);
+    if (!paymentMethod || !paymentMethod.is_active) {
+      throw new AppError(400, 'Selected payment method is not available');
     }
 
     const existing = await this.paymentRepo.findByOrderId(orderId);
@@ -35,6 +45,7 @@ export class PaymentService {
       amount: Number(order.total),
       submittedByCustomerId: customerId,
       submittedAt: new Date(),
+      paymentMethodId,
     });
 
     // Upload receipt

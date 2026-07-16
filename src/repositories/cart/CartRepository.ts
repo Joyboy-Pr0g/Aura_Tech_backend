@@ -3,6 +3,7 @@ import { AppDataSource } from '../../config/database';
 import { Cart } from '../../models/Cart';
 import { CartItem } from '../../models/CartItem';
 import { ICartRepository } from '../../interfaces/repositories/ICartRepository';
+import { EntityManager } from 'typeorm';
 
 @injectable()
 export class CartRepository implements ICartRepository {
@@ -17,13 +18,30 @@ export class CartRepository implements ICartRepository {
   }
 
   async findOrCreate(customerId: string): Promise<Cart> {
-    const existing = await this.findByCustomerId(customerId);
-    if (existing) return existing;
+    const active = await this.findByCustomerId(customerId);
+    if (active) return active;
+
+    const existing = await this.cartRepo.findOne({
+      where: { customer_id: customerId },
+      relations: ['items', 'items.product', 'items.variant'],
+    });
+
+    if (existing) {
+      await this.clearCart(existing.id);
+      await this.cartRepo.update(existing.id, {
+        status: 'active',
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        updated_at: new Date(),
+      });
+      existing.status = 'active';
+      existing.items = [];
+      return existing;
+    }
 
     const cart = this.cartRepo.create({
       customer_id: customerId,
       status: 'active',
-      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
     const saved = await this.cartRepo.save(cart);
     saved.items = [];
@@ -73,7 +91,8 @@ export class CartRepository implements ICartRepository {
     await this.itemRepo.delete({ cart_id: cartId });
   }
 
-  async markConverted(cartId: string): Promise<void> {
-    await this.cartRepo.update(cartId, { status: 'converted_to_order' });
+  async markConverted(cartId: string, manager?: EntityManager): Promise<void> {
+    const cartRepo = manager?.getRepository(Cart) ?? this.cartRepo;
+    await cartRepo.update(cartId, { status: 'converted_to_order' });
   }
 }

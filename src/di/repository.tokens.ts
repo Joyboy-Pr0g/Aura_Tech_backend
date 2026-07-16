@@ -6,4 +6,5 @@ export const REPOSITORY_TOKENS = {
   IOrderRepository: 'IOrderRepository',
   IPaymentRepository: 'IPaymentRepository',
   IAddressRepository: 'IAddressRepository',
+  IShippingFeeRepository: 'IShippingFeeRepository',
 } as const;

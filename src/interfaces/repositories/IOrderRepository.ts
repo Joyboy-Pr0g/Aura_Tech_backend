@@ -1,10 +1,12 @@
 import { Order, OrderStatus } from '../../models/Order';
 import { DecodedCursor, CursorListResult } from '../../utils/cursorPagination';
+import { EntityManager } from 'typeorm';
 
 export interface CreateOrderDto {
   customer_id: string;
   shipping_address_id: string | null;
   billing_address_id: string | null;
+  shipping_fee_id: string | null;
   items: Array<{
     product_id: string;
     variant_id: string | null;
@@ -35,8 +37,15 @@ export interface IOrderRepository {
     cursor: DecodedCursor | null,
   ): Promise<CursorListResult<Order>>;
   findAll(filters: OrderFilters): Promise<CursorListResult<Order>>;
-  create(dto: CreateOrderDto): Promise<Order>;
+  create(dto: CreateOrderDto, manager?: EntityManager): Promise<Order>;
   updateStatus(id: string, status: OrderStatus): Promise<void>;
-  recordStatusHistory(orderId: string, previous: OrderStatus | null, next: OrderStatus, changedById: string | null, reason: string | null): Promise<void>;
+  recordStatusHistory(
+    orderId: string,
+    previous: OrderStatus | null,
+    next: OrderStatus,
+    changedById: string | null,
+    reason: string | null,
+    manager?: EntityManager,
+  ): Promise<void>;
   getTotalOrderCount(): Promise<number>;
 }

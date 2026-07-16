@@ -7,15 +7,111 @@ import { generateToken, getTokenRemainingTtl } from '../../utils/jwt';
 import { getRedisClient } from '../../config/redis';
 import { Role, UserStatus } from '../../types/rbac';
 import { User } from '../../models/User';
+import { generateVerificationCode } from '../../utils/verificationCode';
+import { sendEmailChangeVerificationCode } from '../mail/emailService';
 
+const EMAIL_CODE_TTL_SEC = 15 * 60;
+const EMAIL_VERIFIED_TTL_SEC = 30 * 60;
 
+function emailChangeCodeKey(userId: string, email: string): string {
+  return `email_change_code:${userId}:${email.toLowerCase()}`;
+}
 
+function emailChangeVerifiedKey(userId: string, email: string): string {
+  return `email_change_verified:${userId}:${email.toLowerCase()}`;
+}
 @injectable()
 export class AuthService {
   constructor(
     @inject(REPOSITORY_TOKENS.IAuthRepository)
     private authRepo: IAuthRepository,
   ) {}
+
+  private async assertRedisAvailable(): Promise<void> {
+    try {
+      const redis = getRedisClient();
+      await redis.ping();
+    } catch {
+      throw new AppError(503, 'Verification service temporarily unavailable');
+    }
+  }
+
+  async sendEmailVerificationCode(userId: string, email: string): Promise<void> {
+    const user = await this.authRepo.findById(userId);
+    if (!user || user.deleted_at) throw new AppError(404, 'User not found');
+
+    const normalizedEmail = email.toLowerCase().trim();
+    if (normalizedEmail === user.email.toLowerCase()) {
+      throw new AppError(400, 'New email must be different from your current email');
+    }
+
+    const existingEmail = await this.authRepo.findByEmail(normalizedEmail);
+    if (existingEmail && existingEmail.id !== userId) {
+      throw new AppError(409, 'Email is already registered');
+    }
+
+    await this.assertRedisAvailable();
+
+    const code = generateVerificationCode();
+    const redis = getRedisClient();
+    const codeKey = emailChangeCodeKey(userId, normalizedEmail);
+    const verifiedKey = emailChangeVerifiedKey(userId, normalizedEmail);
+
+    await redis.set(codeKey, code, 'EX', EMAIL_CODE_TTL_SEC);
+    await redis.del(verifiedKey);
+
+    const sent = await sendEmailChangeVerificationCode(normalizedEmail, code, user.full_name);
+    if (!sent) {
+      throw new AppError(500, 'Failed to send verification email');
+    }
+  }
+
+  async verifyEmailChangeCode(userId: string, email: string, code: string): Promise<void> {
+    const user = await this.authRepo.findById(userId);
+    if (!user || user.deleted_at) throw new AppError(404, 'User not found');
+
+    const normalizedEmail = email.toLowerCase().trim();
+    if (normalizedEmail === user.email.toLowerCase()) {
+      throw new AppError(400, 'New email must be different from your current email');
+    }
+
+    await this.assertRedisAvailable();
+
+    const redis = getRedisClient();
+    const codeKey = emailChangeCodeKey(userId, normalizedEmail);
+    const storedCode = await redis.get(codeKey);
+
+    if (!storedCode) {
+      throw new AppError(400, 'Verification code expired or not found. Please request a new one.');
+    }
+
+    if (storedCode !== code.trim()) {
+      throw new AppError(400, 'Invalid verification code');
+    }
+
+    const verifiedKey = emailChangeVerifiedKey(userId, normalizedEmail);
+    await redis.set(verifiedKey, '1', 'EX', EMAIL_VERIFIED_TTL_SEC);
+    await redis.del(codeKey);
+  }
+
+  private async isEmailChangeVerified(userId: string, email: string): Promise<boolean> {
+    try {
+      const redis = getRedisClient();
+      const verified = await redis.get(emailChangeVerifiedKey(userId, email.toLowerCase().trim()));
+      return verified === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  private async clearEmailChangeVerified(userId: string, email: string): Promise<void> {
+    try {
+      const redis = getRedisClient();
+      await redis.del(emailChangeVerifiedKey(userId, email.toLowerCase().trim()));
+    } catch {
+      // non-critical cleanup
+    }
+  }
 
   async register(data: {
     full_name: string;
@@ -77,6 +173,62 @@ export class AuthService {
     const user = await this.authRepo.findById(userId);
     if (!user) throw new AppError(404, 'User not found');
     return this.sanitize(user);
+  }
+
+  async updateProfile(
+    userId: string,
+    data: { full_name: string; email: string; phone: string },
+  ): Promise<SafeUser> {
+    const user = await this.authRepo.findById(userId);
+    if (!user || user.deleted_at) throw new AppError(404, 'User not found');
+
+    const normalizedEmail = data.email.toLowerCase().trim();
+
+    if (normalizedEmail !== user.email.toLowerCase()) {
+      const verified = await this.isEmailChangeVerified(userId, normalizedEmail);
+      if (!verified) {
+        throw new AppError(400, 'Email must be verified before updating your profile');
+      }
+
+      const existingEmail = await this.authRepo.findByEmail(normalizedEmail);
+      if (existingEmail && existingEmail.id !== userId) {
+        throw new AppError(409, 'Email is already registered');
+      }
+    }
+
+    if (data.phone !== user.phone) {
+      const existingPhone = await this.authRepo.findByPhone(data.phone);
+      if (existingPhone && existingPhone.id !== userId) {
+        throw new AppError(409, 'Phone number is already registered');
+      }
+    }
+
+    const updated = await this.authRepo.update(userId, {
+      full_name: data.full_name,
+      email: normalizedEmail,
+      phone: data.phone,
+    });
+    if (!updated) throw new AppError(404, 'User not found');
+
+    if (normalizedEmail !== user.email.toLowerCase()) {
+      await this.clearEmailChangeVerified(userId, normalizedEmail);
+    }
+
+    return this.sanitize(updated);
+  }
+
+  async changePassword(
+    userId: string,
+    data: { current_password: string; new_password: string },
+  ): Promise<void> {
+    const user = await this.authRepo.findById(userId);
+    if (!user || user.deleted_at) throw new AppError(404, 'User not found');
+
+    if (!(await comparePassword(data.current_password, user.password_hash))) {
+      throw new AppError(401, 'Current password is incorrect');
+    }
+
+    await this.authRepo.resetPassword(userId, await hashPassword(data.new_password));
   }
 
   private sanitize(user: User): SafeUser {

@@ -6,6 +6,7 @@ import { Order, OrderStatus, ORDER_TRANSITIONS } from '../../models/Order';
 import { ICartRepository } from '../../interfaces/repositories/ICartRepository';
 import { IOrderRepository } from '../../interfaces/repositories/IOrderRepository';
 import { IAddressRepository } from '../../interfaces/repositories/IAddressRepository';
+import { IShippingFeeRepository } from '../../interfaces/repositories/IShippingFeeRepository';
 import { REPOSITORY_TOKENS } from '../../di/repository.tokens';
 import { AppError } from '../../core/errors/AppError';
 import { decodeCreatedAtIdCursor } from '../../utils/cursorPagination';
@@ -16,12 +17,14 @@ export class OrderService {
     @inject(REPOSITORY_TOKENS.IOrderRepository) private orderRepo: IOrderRepository,
     @inject(REPOSITORY_TOKENS.ICartRepository) private cartRepo: ICartRepository,
     @inject(REPOSITORY_TOKENS.IAddressRepository) private addressRepo: IAddressRepository,
+    @inject(REPOSITORY_TOKENS.IShippingFeeRepository) private shippingFeeRepo: IShippingFeeRepository,
   ) {}
 
   async createFromCart(
     customerId: string,
     shippingAddressId: string | null,
     billingAddressId: string | null,
+    shippingFeeId: string,
     notes: string | null,
   ): Promise<Order> {
     const cart = await this.cartRepo.findByCustomerId(customerId);
@@ -38,6 +41,12 @@ export class OrderService {
       const addr = await this.addressRepo.findById(billingAddressId);
       if (!addr || addr.customer_id !== customerId) throw new AppError(404, 'Billing address not found');
     }
+
+    const shippingFee = await this.shippingFeeRepo.findById(shippingFeeId);
+    if (!shippingFee || !shippingFee.is_active) {
+      throw new AppError(400, 'Selected shipping option is not available');
+    }
+    const shippingCost = Number(shippingFee.price);
 
     // Reserve stock inside transaction
     const order = await AppDataSource.transaction(async (manager) => {
@@ -94,25 +103,32 @@ export class OrderService {
         });
       }
 
-      return this.orderRepo.create({
+      const savedOrder = await this.orderRepo.create({
         customer_id: customerId,
         shipping_address_id: shippingAddressId,
         billing_address_id: billingAddressId,
+        shipping_fee_id: shippingFeeId,
         items: orderItems,
         subtotal,
         discount_total: 0,
         tax: 0,
-        shipping_cost: 0,
-        total: subtotal,
+        shipping_cost: shippingCost,
+        total: subtotal + shippingCost,
         notes,
-      });
-    });
+      }, manager);
 
-    // Record initial status history and convert cart
-    await Promise.all([
-      this.orderRepo.recordStatusHistory(order.id, null, 'pending_payment', customerId, 'Order created'),
-      this.cartRepo.markConverted(cart.id),
-    ]);
+      await this.orderRepo.recordStatusHistory(
+        savedOrder.id,
+        null,
+        'pending_payment',
+        customerId,
+        'Order created',
+        manager,
+      );
+      await this.cartRepo.markConverted(cart.id, manager);
+
+      return savedOrder;
+    });
 
     return order;
   }

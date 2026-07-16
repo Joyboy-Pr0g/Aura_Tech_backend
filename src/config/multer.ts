@@ -21,5 +21,5 @@ const fileFilter = (
 export const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter,
-  limits: { fileSize: MAX_FILE_SIZE },
+  limits: { fileSize: MAX_FILE_SIZE, files: 25 },
 });

@@ -32,6 +32,7 @@ export interface UserFilters {
 
 export interface IAuthRepository {
   findByEmail(email: string): Promise<User | null>;
+  findByPhone(phone: string): Promise<User | null>;
   findById(id: string): Promise<User | null>;
   create(dto: CreateUserDto): Promise<User>;
   update(id: string, data: Partial<CreateUserDto>): Promise<User | null>;

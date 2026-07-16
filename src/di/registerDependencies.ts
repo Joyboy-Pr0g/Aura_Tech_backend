@@ -9,6 +9,7 @@ import { CartRepository } from '../repositories/cart/CartRepository';
 import { OrderRepository } from '../repositories/order/OrderRepository';
 import { PaymentRepository } from '../repositories/payment/PaymentRepository';
 import { AddressRepository } from '../repositories/address/AddressRepository';
+import { ShippingFeeRepository } from '../repositories/shipping/ShippingFeeRepository';
 
 // Services
 import { AuthService } from '../services/auth/AuthService';
@@ -18,6 +19,7 @@ import { CartService } from '../services/cart/CartService';
 import { OrderService } from '../services/order/OrderService';
 import { PaymentService } from '../services/payment/PaymentService';
 import { AddressService } from '../services/address/AddressService';
+import { ShippingFeeService } from '../services/shipping/ShippingFeeService';
 import { EngagementService } from '../services/engagement/EngagementService';
 import { AdminDashboardService } from '../services/admin/AdminDashboardService';
 import { AdminCategoryService } from '../services/admin/AdminCategoryService';
@@ -38,6 +40,8 @@ import { OrderController } from '../controllers/order/OrderController';
 import { PaymentController } from '../controllers/payment/PaymentController';
 import { AddressController } from '../controllers/address/AddressController';
 import { EngagementController } from '../controllers/engagement/EngagementController';
+import { ShippingFeeController } from '../controllers/shipping/ShippingFeeController';
+import { AdminShippingFeeController } from '../controllers/admin/Admin.ShippingFeeController';
 
 export function registerDependencies(): void {
   // ─── Repositories ────────────────────────────────────────────────────────
@@ -48,6 +52,7 @@ export function registerDependencies(): void {
   container.registerSingleton(REPOSITORY_TOKENS.IOrderRepository, OrderRepository);
   container.registerSingleton(REPOSITORY_TOKENS.IPaymentRepository, PaymentRepository);
   container.registerSingleton(REPOSITORY_TOKENS.IAddressRepository, AddressRepository);
+  container.registerSingleton(REPOSITORY_TOKENS.IShippingFeeRepository, ShippingFeeRepository);
 
   // ─── Services ────────────────────────────────────────────────────────────
   container.registerSingleton(AuthService, AuthService);
@@ -57,6 +62,7 @@ export function registerDependencies(): void {
   container.registerSingleton(OrderService, OrderService);
   container.registerSingleton(PaymentService, PaymentService);
   container.registerSingleton(AddressService, AddressService);
+  container.registerSingleton(ShippingFeeService, ShippingFeeService);
   container.registerSingleton(EngagementService, EngagementService);
   container.registerSingleton(AdminDashboardService, AdminDashboardService);
   container.registerSingleton(AdminCategoryService, AdminCategoryService);
@@ -71,6 +77,8 @@ export function registerDependencies(): void {
   container.registerSingleton(PaymentController, PaymentController);
   container.registerSingleton(AddressController, AddressController);
   container.registerSingleton(EngagementController, EngagementController);
+  container.registerSingleton(ShippingFeeController, ShippingFeeController);
+  container.registerSingleton(AdminShippingFeeController, AdminShippingFeeController);
   container.registerSingleton(AdminDashboardController, AdminDashboardController);
   container.registerSingleton(AdminUserController, AdminUserController);
   container.registerSingleton(AdminProductController, AdminProductController);

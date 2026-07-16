@@ -8,7 +8,7 @@ import { CustomerAddress } from '../../models/CustomerAddress';
 export class AddressService {
   constructor(
     @inject(REPOSITORY_TOKENS.IAddressRepository) private addressRepo: IAddressRepository,
-  ) {}
+  ) { }
 
   async getMyAddresses(customerId: string): Promise<CustomerAddress[]> {
     return this.addressRepo.findByCustomerId(customerId);
@@ -21,6 +21,9 @@ export class AddressService {
   async updateAddress(customerId: string, addressId: string, dto: Partial<CreateAddressDto>): Promise<void> {
     const address = await this.addressRepo.findById(addressId);
     if (!address || address.customer_id !== customerId) throw new AppError(404, 'Address not found');
+    if (dto.is_default) {
+      await this.addressRepo.setDefault(customerId, addressId);
+    }
     await this.addressRepo.update(addressId, dto);
   }
 

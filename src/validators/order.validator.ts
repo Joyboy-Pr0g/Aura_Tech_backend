@@ -14,9 +14,14 @@ export const editQuantitySchema = Joi.object({
 
 export const checkoutSchema = Joi.object({
   shipping_address_id: Joi.string().uuid().optional(),
-  billing_address_id: Joi.string().uuid().optional(),
+  billing_address_id: Joi.string().uuid().required(),
+  shipping_fee_id: Joi.string().uuid().required(),
   notes: Joi.string().max(500).optional(),
 });
+
+export const submitPaymentSchema = Joi.object({
+  payment_method_id: Joi.string().uuid().required(),
+}).unknown(false);
 
 export const updateOrderStatusSchema = Joi.object({
   status: Joi.string()

@@ -12,6 +12,7 @@ import {
   CursorListResult,
   decodeCreatedAtIdCursor,
 } from '../../utils/cursorPagination';
+import { ParsedProductUploadFile, VariantImageRecord, VariantInput } from '../../utils/productUploadFiles';
 
 function toSlug(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -20,6 +21,10 @@ function toSlug(title: string): string {
 function normalizeSubCategoryId(value?: string | null): string | null {
   if (!value || String(value).trim() === '') return null;
   return value;
+}
+
+function variantSkuFolder(sku: string): string {
+  return sku.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
 @injectable()
@@ -62,7 +67,8 @@ export class ProductService {
     brand?: string;
     features?: Record<string, any>;
     imageFiles?: Array<{ buffer: Buffer; mimetype: string; is_primary?: boolean }>;
-    variants?: Array<{ sku: string; size?: string; color?: string; price?: number; stock_quantity?: number }>;
+    variantImageFiles?: Map<number, ParsedProductUploadFile>;
+    variants?: VariantInput[];
     stock_quantity?: number;
     created_by_id: string;
   }): Promise<Product> {
@@ -107,8 +113,26 @@ export class ProductService {
 
     if (data.variants?.length) {
       const variantRepo = AppDataSource.getRepository(ProductVariant);
-      for (const v of data.variants) {
-        await variantRepo.save(variantRepo.create({ ...v, product_id: product.id }));
+      for (let index = 0; index < data.variants.length; index++) {
+        const variant = data.variants[index];
+        const variantImages = await this.resolveVariantImages({
+          productSlug: slug,
+          sku: variant.sku,
+          variantIndex: index,
+          variantImageFiles: data.variantImageFiles,
+        });
+
+        await variantRepo.save(
+          variantRepo.create({
+            product_id: product.id,
+            sku: variant.sku,
+            size: variant.size ?? null,
+            color: variant.color ?? null,
+            price: variant.price ?? null,
+            stock_quantity: variant.stock_quantity ?? 0,
+            images: variantImages,
+          }),
+        );
       }
     }
 
@@ -126,16 +150,10 @@ export class ProductService {
       brand?: string | null;
       features?: Record<string, any>;
       newImageFiles?: Array<{ buffer: Buffer; mimetype: string }>;
+      variantImageFiles?: Map<number, ParsedProductUploadFile>;
       deleteImagePublicIds?: string[];
       stock_quantity?: number;
-      variants?: Array<{
-        id?: string;
-        sku: string;
-        size?: string | null;
-        color?: string | null;
-        price?: number | null;
-        stock_quantity?: number;
-      }>;
+      variants?: VariantInput[];
     },
     adminId: string,
   ): Promise<Product> {
@@ -162,7 +180,6 @@ export class ProductService {
     if (data.features !== undefined) updates.features = data.features;
     if (data.stock_quantity !== undefined) updates.stock_quantity = data.stock_quantity;
 
-    // Handle image deletions
     let currentImages = product.images ?? [];
     if (data.deleteImagePublicIds?.length) {
       for (const pid of data.deleteImagePublicIds) {
@@ -171,7 +188,6 @@ export class ProductService {
       }
     }
 
-    // Upload new images
     if (data.newImageFiles?.length) {
       for (const f of data.newImageFiles) {
         const uploaded = await uploadToCloudinary(f.buffer, `aura-tech/products/${product.slug}`, f.mimetype);
@@ -184,7 +200,7 @@ export class ProductService {
     await this.productRepo.update(id, updates);
 
     if (data.variants !== undefined) {
-      await this.syncVariants(id, data.variants);
+      await this.syncVariants(id, product.slug, data.variants, data.variantImageFiles);
     }
 
     return (await this.productRepo.findById(id))!;
@@ -192,14 +208,9 @@ export class ProductService {
 
   private async syncVariants(
     productId: string,
-    variants: Array<{
-      id?: string;
-      sku: string;
-      size?: string | null;
-      color?: string | null;
-      price?: number | null;
-      stock_quantity?: number;
-    }>,
+    productSlug: string,
+    variants: VariantInput[],
+    variantImageFiles?: Map<number, ParsedProductUploadFile>,
   ): Promise<void> {
     const variantRepo = AppDataSource.getRepository(ProductVariant);
     const existing = await variantRepo.find({ where: { product_id: productId } });
@@ -210,20 +221,45 @@ export class ProductService {
         if (current.reserved_quantity > 0) {
           throw new AppError(400, `Variant ${current.sku} has reserved stock and cannot be removed`);
         }
+        await this.deleteVariantImages(current.images);
         await variantRepo.delete(current.id);
       }
     }
 
-    for (const variant of variants) {
+    for (let index = 0; index < variants.length; index++) {
+      const variant = variants[index];
+      const uploadedImages = await this.resolveVariantImages({
+        productSlug,
+        sku: variant.sku,
+        variantIndex: index,
+        variantImageFiles,
+      });
+
       if (variant.id) {
         const current = existing.find((item) => item.id === variant.id);
         if (!current) throw new AppError(404, 'Variant not found');
+
+        let nextImages = current.images ?? null;
+
+        if (variant.delete_image_public_id) {
+          await this.deleteVariantImages(
+            current.images?.filter((img) => img.public_id === variant.delete_image_public_id) ?? null,
+          );
+          nextImages = null;
+        }
+
+        if (uploadedImages) {
+          await this.deleteVariantImages(current.images);
+          nextImages = uploadedImages;
+        }
+
         await variantRepo.update(variant.id, {
           sku: variant.sku,
           size: variant.size ?? null,
           color: variant.color ?? null,
           price: variant.price ?? null,
           stock_quantity: variant.stock_quantity ?? 0,
+          images: nextImages,
         });
         continue;
       }
@@ -236,8 +272,50 @@ export class ProductService {
           color: variant.color ?? null,
           price: variant.price ?? null,
           stock_quantity: variant.stock_quantity ?? 0,
+          images: uploadedImages,
         }),
       );
+    }
+  }
+
+  private async resolveVariantImages(params: {
+    productSlug: string;
+    sku: string;
+    variantIndex: number;
+    variantImageFiles?: Map<number, ParsedProductUploadFile>;
+  }): Promise<VariantImageRecord[] | null> {
+    const file = params.variantImageFiles?.get(params.variantIndex);
+    if (!file) return null;
+
+    const uploaded = await this.uploadVariantImage(
+      file.buffer,
+      file.mimetype,
+      params.productSlug,
+      params.sku,
+    );
+    return [uploaded];
+  }
+
+  private async uploadVariantImage(
+    buffer: Buffer,
+    mimetype: string,
+    productSlug: string,
+    sku: string,
+  ): Promise<VariantImageRecord> {
+    const uploaded = await uploadToCloudinary(
+      buffer,
+      `aura-tech/products/${productSlug}/variants/${variantSkuFolder(sku)}`,
+      mimetype,
+    );
+    return { url: uploaded.url, public_id: uploaded.public_id };
+  }
+
+  private async deleteVariantImages(
+    images: Array<{ public_id: string }> | null | undefined,
+  ): Promise<void> {
+    if (!images?.length) return;
+    for (const image of images) {
+      await deleteFromCloudinary(image.public_id).catch(() => { });
     }
   }
 
@@ -322,11 +400,16 @@ export class ProductService {
     const product = await this.productRepo.findById(id);
     if (!product) throw new AppError(404, 'Product not found');
 
-    // Delete Cloudinary images
     if (product.images?.length) {
       for (const img of product.images) {
         await deleteFromCloudinary(img.public_id).catch(() => { });
       }
+    }
+
+    const variantRepo = AppDataSource.getRepository(ProductVariant);
+    const variants = await variantRepo.find({ where: { product_id: id } });
+    for (const variant of variants) {
+      await this.deleteVariantImages(variant.images);
     }
 
     await this.productRepo.softDelete(id);

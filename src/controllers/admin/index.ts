@@ -4,6 +4,7 @@ import { AdminProductController } from './Admin.ProductController';
 import { AdminOrderController } from './Admin.OrderController';
 import { AdminCategoryController } from './Admin.CategoryController';
 import { AdminPaymentController } from './Admin.PaymentController';
+import { AdminShippingFeeController } from './Admin.ShippingFeeController';
 
 export {
   AdminDashboardController,
@@ -12,4 +13,5 @@ export {
   AdminOrderController,
   AdminCategoryController,
   AdminPaymentController,
+  AdminShippingFeeController,
 };

@@ -1,5 +1,6 @@
 import { Cart } from '../../models/Cart';
 import { CartItem } from '../../models/CartItem';
+import { EntityManager } from 'typeorm';
 
 export interface ICartRepository {
   findByCustomerId(customerId: string): Promise<Cart | null>;
@@ -9,5 +10,5 @@ export interface ICartRepository {
   editQuantity(itemId: string, quantity: number): Promise<void>;
   removeItem(itemId: string): Promise<void>;
   clearCart(cartId: string): Promise<void>;
-  markConverted(cartId: string): Promise<void>;
+  markConverted(cartId: string, manager?: EntityManager): Promise<void>;
 }

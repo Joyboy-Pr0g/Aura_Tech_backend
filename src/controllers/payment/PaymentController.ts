@@ -23,6 +23,7 @@ export class PaymentController {
       const payment = await this.paymentService.submitPayment(
         req.user!.id,
         req.params.orderId,
+        req.validatedData.payment_method_id,
         req.file,
       );
       res.status(201).json(APIResponse.success('Payment submitted successfully', payment));

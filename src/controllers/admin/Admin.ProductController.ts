@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import { APIResponse } from '../../core/responses/api-response';
 import { getErrorStatusCode } from '../../core/responses/controller-error-status';
 import { AdminProductService } from '../../services/admin/AdminProductService';
+import { parseProductUploadFiles } from '../../utils/productUploadFiles';
 
 @injectable()
 export class AdminProductController {
@@ -13,11 +14,7 @@ export class AdminProductController {
   createProduct = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
       const { title, description, price, category_id, sub_category_id, brand, features, variants, stock_quantity } = req.validatedData;
-      const imageFiles = (req.files as Express.Multer.File[] | undefined)?.map((f, i) => ({
-        buffer: f.buffer,
-        mimetype: f.mimetype,
-        is_primary: i === 0,
-      }));
+      const { imageFiles, variantImageFiles } = parseProductUploadFiles(req.files as Express.Multer.File[] | undefined);
 
       const product = await this.adminProductService.createProduct({
         title,
@@ -28,6 +25,7 @@ export class AdminProductController {
         brand,
         features,
         imageFiles,
+        variantImageFiles,
         variants,
         stock_quantity,
         created_by_id: req.user!.id,
@@ -42,14 +40,12 @@ export class AdminProductController {
     try {
       const { id } = req.params;
       const { deleteImagePublicIds, ...rest } = req.validatedData;
-      const newImageFiles = (req.files as Express.Multer.File[] | undefined)?.map((f) => ({
-        buffer: f.buffer,
-        mimetype: f.mimetype,
-      }));
+      const { imageFiles, variantImageFiles } = parseProductUploadFiles(req.files as Express.Multer.File[] | undefined);
+      const newImageFiles = imageFiles.map(({ buffer, mimetype }) => ({ buffer, mimetype }));
 
       const product = await this.adminProductService.updateProduct(
         id,
-        { ...rest, deleteImagePublicIds, newImageFiles },
+        { ...rest, deleteImagePublicIds, newImageFiles, variantImageFiles },
         req.user!.id,
       );
       res.json(APIResponse.success('Product updated successfully', product));

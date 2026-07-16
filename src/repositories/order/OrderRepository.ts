@@ -4,6 +4,7 @@ import { Order, OrderStatus } from '../../models/Order';
 import { OrderItem } from '../../models/OrderItem';
 import { OrderStatusHistory } from '../../models/OrderStatusHistory';
 import { IOrderRepository, CreateOrderDto, OrderFilters } from '../../interfaces/repositories/IOrderRepository';
+import { EntityManager } from 'typeorm';
 import {
   applyCreatedAtIdCursorDesc,
   CursorListResult,
@@ -28,7 +29,7 @@ export class OrderRepository implements IOrderRepository {
   async findById(id: string): Promise<Order | null> {
     return this.repo.findOne({
       where: { id },
-      relations: ['items', 'items.product', 'items.variant', 'payment', 'customer'],
+      relations: ['items', 'items.product', 'items.variant', 'payment', 'payment.payment_method', 'customer', 'shipping_fee'],
     });
   }
 
@@ -45,6 +46,7 @@ export class OrderRepository implements IOrderRepository {
       .createQueryBuilder('o')
       .leftJoinAndSelect('o.items', 'items')
       .leftJoinAndSelect('o.payment', 'payment')
+      .leftJoinAndSelect('o.shipping_fee', 'shipping_fee')
       .where('o.customer_id = :customerId', { customerId });
 
     applyCreatedAtIdCursorDesc(qb, 'o', cursor);
@@ -79,14 +81,15 @@ export class OrderRepository implements IOrderRepository {
     return paginateByCursor(rows, limit);
   }
 
-  async create(dto: CreateOrderDto): Promise<Order> {
-    return AppDataSource.transaction(async (manager) => {
+  async create(dto: CreateOrderDto, manager?: EntityManager): Promise<Order> {
+    const run = async (mgr: EntityManager) => {
       const orderNumber = this.generateOrderNumber();
-      const order = manager.create(Order, {
+      const order = mgr.create(Order, {
         order_number: orderNumber,
         customer_id: dto.customer_id,
         shipping_address_id: dto.shipping_address_id,
         billing_address_id: dto.billing_address_id,
+        shipping_fee_id: dto.shipping_fee_id,
         status: 'pending_payment',
         subtotal: dto.subtotal,
         discount_total: dto.discount_total,
@@ -95,10 +98,10 @@ export class OrderRepository implements IOrderRepository {
         total: dto.total,
         notes: dto.notes,
       });
-      const savedOrder = await manager.save(Order, order);
+      const savedOrder = await mgr.save(Order, order);
 
       const items = dto.items.map((i) =>
-        manager.create(OrderItem, {
+        mgr.create(OrderItem, {
           order_id: savedOrder.id,
           product_id: i.product_id,
           variant_id: i.variant_id,
@@ -108,10 +111,13 @@ export class OrderRepository implements IOrderRepository {
           status: 'pending',
         }),
       );
-      await manager.save(OrderItem, items);
+      await mgr.save(OrderItem, items);
       savedOrder.items = items;
       return savedOrder;
-    });
+    };
+
+    if (manager) return run(manager);
+    return AppDataSource.transaction(run);
   }
 
   async updateStatus(id: string, status: OrderStatus): Promise<void> {
@@ -124,15 +130,17 @@ export class OrderRepository implements IOrderRepository {
     next: OrderStatus,
     changedById: string | null,
     reason: string | null,
+    manager?: EntityManager,
   ): Promise<void> {
-    const entry = this.historyRepo.create({
+    const historyRepo = manager?.getRepository(OrderStatusHistory) ?? this.historyRepo;
+    const entry = historyRepo.create({
       order_id: orderId,
       previous_status: previous,
       new_status: next,
       changed_by_id: changedById,
       change_reason: reason,
     });
-    await this.historyRepo.save(entry);
+    await historyRepo.save(entry);
   }
 
   async getTotalOrderCount(): Promise<number> {

@@ -10,11 +10,12 @@ export class OrderController {
 
   checkout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { shipping_address_id, billing_address_id, notes } = req.validatedData;
+      const { shipping_address_id, billing_address_id, shipping_fee_id, notes } = req.validatedData;
       const order = await this.orderService.createFromCart(
         req.user!.id,
         shipping_address_id ?? null,
         billing_address_id ?? null,
+        shipping_fee_id,
         notes ?? null,
       );
       res.status(201).json(APIResponse.success('Order created successfully', order));

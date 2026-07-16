@@ -62,10 +62,11 @@ export class PaymentRepository implements IPaymentRepository {
     return paginateByCursor(rows, limit);
   }
 
-  async create(dto: { orderId: string; amount: number; submittedByCustomerId: string; submittedAt: Date }): Promise<Payment> {
+  async create(dto: { orderId: string; amount: number; submittedByCustomerId: string; submittedAt: Date; paymentMethodId?: string | null }): Promise<Payment> {
     const payment = this.repo.create({
       order_id: dto.orderId,
       amount: dto.amount,
+      payment_method_id: dto.paymentMethodId ?? null,
       status: 'pending',
       submitted_by_customer_id: dto.submittedByCustomerId,
       submitted_at: dto.submittedAt,

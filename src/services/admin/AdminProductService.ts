@@ -11,6 +11,7 @@ import { CursorListResult, decodeCreatedAtIdCursor } from '../../utils/cursorPag
 import { deleteFromCloudinary } from '../../config/cloudinary';
 import { AppDataSource } from '../../config/database';
 import { ProductService } from '../product/ProductService';
+import { ParsedProductUploadFile, VariantInput } from '../../utils/productUploadFiles';
 
 export interface AdminCreateProductInput {
   title: string;
@@ -21,7 +22,8 @@ export interface AdminCreateProductInput {
   brand?: string;
   features?: Record<string, any>;
   imageFiles?: Array<{ buffer: Buffer; mimetype: string; is_primary?: boolean }>;
-  variants?: Array<{ sku: string; size?: string; color?: string; price?: number; stock_quantity?: number }>;
+  variantImageFiles?: Map<number, ParsedProductUploadFile>;
+  variants?: VariantInput[];
   stock_quantity?: number;
   created_by_id: string;
 }
@@ -35,16 +37,10 @@ export interface AdminUpdateProductInput {
   brand?: string | null;
   features?: Record<string, any>;
   newImageFiles?: Array<{ buffer: Buffer; mimetype: string }>;
+  variantImageFiles?: Map<number, ParsedProductUploadFile>;
   deleteImagePublicIds?: string[];
   stock_quantity?: number;
-  variants?: Array<{
-    id?: string;
-    sku: string;
-    size?: string | null;
-    color?: string | null;
-    price?: number | null;
-    stock_quantity?: number;
-  }>;
+  variants?: VariantInput[];
 }
 
 @injectable()
@@ -123,6 +119,15 @@ export class AdminProductService {
     if (product.images?.length) {
       for (const img of product.images) {
         await deleteFromCloudinary(img.public_id).catch(() => { });
+      }
+    }
+
+    const variants = product.variants ?? [];
+    for (const variant of variants) {
+      if (variant.images?.length) {
+        for (const img of variant.images) {
+          await deleteFromCloudinary(img.public_id).catch(() => { });
+        }
       }
     }
 

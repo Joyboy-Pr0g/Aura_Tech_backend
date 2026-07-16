@@ -53,4 +53,50 @@ export class AuthController {
       );
     }
   }
+
+  async updateProfile(req: Request, res: Response): Promise<void> {
+    try {
+      const user = await this.authService.updateProfile(req.user!.id, req.validatedData);
+      res.status(200).json(APIResponse.success('Profile updated', user));
+    } catch (err) {
+      res.status(getErrorStatusCode(err)).json(
+        APIResponse.error(err instanceof Error ? err.message : 'Failed to update profile'),
+      );
+    }
+  }
+
+  async changePassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { current_password, new_password } = req.validatedData;
+      await this.authService.changePassword(req.user!.id, { current_password, new_password });
+      res.status(200).json(APIResponse.success('Password changed successfully'));
+    } catch (err) {
+      res.status(getErrorStatusCode(err)).json(
+        APIResponse.error(err instanceof Error ? err.message : 'Failed to change password'),
+      );
+    }
+  }
+
+  async sendEmailVerificationCode(req: Request, res: Response): Promise<void> {
+    try {
+      await this.authService.sendEmailVerificationCode(req.user!.id, req.validatedData.email);
+      res.status(200).json(APIResponse.success('Verification code sent'));
+    } catch (err) {
+      res.status(getErrorStatusCode(err)).json(
+        APIResponse.error(err instanceof Error ? err.message : 'Failed to send verification code'),
+      );
+    }
+  }
+
+  async verifyEmailChangeCode(req: Request, res: Response): Promise<void> {
+    try {
+      const { email, code } = req.validatedData;
+      await this.authService.verifyEmailChangeCode(req.user!.id, email, code);
+      res.status(200).json(APIResponse.success('Email verified successfully'));
+    } catch (err) {
+      res.status(getErrorStatusCode(err)).json(
+        APIResponse.error(err instanceof Error ? err.message : 'Failed to verify email'),
+      );
+    }
+  }
 }

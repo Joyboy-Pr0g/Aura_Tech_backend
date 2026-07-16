@@ -20,14 +20,14 @@ router.get('/', validateQuery(productFiltersSchema), ProductCtrl.getProducts);
 router.get('/:id', ProductCtrl.getProductById);
 router.post(
   '/',
-  upload.array('images', 10),
+  upload.any(),
   parseMultipartJsonFields(['features', 'variants']),
   validateRequest(createProductSchema),
   ProductCtrl.createProduct,
 );
 router.put(
   '/:id',
-  upload.array('images', 10),
+  upload.any(),
   parseMultipartJsonFields(['features', 'deleteImagePublicIds', 'variants']),
   validateRequest(updateProductSchema),
   ProductCtrl.updateProduct,

@@ -5,6 +5,7 @@ import {
 import { User } from './User';
 import { OrderItem } from './OrderItem';
 import { Payment } from './Payment';
+import { ShippingFee } from './ShippingFee';
 
 export type OrderStatus =
   | 'pending_payment'
@@ -50,6 +51,13 @@ export class Order {
 
   @Column({ type: 'uuid', nullable: true, name: 'billing_address_id' })
   billing_address_id: string | null;
+
+  @Column({ type: 'uuid', nullable: true, name: 'shipping_fee_id' })
+  shipping_fee_id: string | null;
+
+  @ManyToOne(() => ShippingFee, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'shipping_fee_id' })
+  shipping_fee: ShippingFee | null;
 
   @Column({ type: 'varchar', default: 'pending_payment' })
   @Index()

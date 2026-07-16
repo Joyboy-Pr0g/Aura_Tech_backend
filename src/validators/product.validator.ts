@@ -32,6 +32,7 @@ const productVariantSchema = Joi.object({
   color: Joi.string().optional().allow(null, ''),
   price: Joi.number().positive().optional().allow(null),
   stock_quantity: Joi.number().integer().min(0).default(0),
+  delete_image_public_id: Joi.string().optional().allow(null, ''),
 });
 
 export const createProductSchema = Joi.object({
