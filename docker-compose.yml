@@ -1,0 +1,111 @@
+# AURA TECH — Production Docker Compose (Hetzner CX23)
+# Usage: cp .env.example .env && edit secrets → docker compose up -d
+
+name: auratech
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: auratech-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      POSTGRES_DB: ${DB_NAME:-auratech_db}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - auratech-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-auratech_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    mem_limit: 1200m
+    mem_reservation: 512m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    # Security: PostgreSQL is NOT exposed to the host/internet
+
+  redis:
+    image: redis:7-alpine
+    container_name: auratech-redis
+    restart: always
+    command: redis-server --save 60 1 --loglevel warning --maxmemory 200mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - auratech-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    mem_limit: 256m
+    mem_reservation: 64m
+    cpus: 0.25
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '3'
+    # Security: Redis is NOT exposed to the host/internet
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auratech-backend
+    restart: always
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-auratech_db}
+      REDIS_URL: redis://redis:6379
+    ports:
+      # Host:Container — only backend exposed (Cloudflare → server:3000 → container:5000)
+      - '3000:5000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - auratech-network
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:5000/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    mem_limit: 600m
+    mem_reservation: 256m
+    cpus: 0.75
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+networks:
+  auratech-network:
+    driver: bridge
+    name: auratech-network
+
+volumes:
+  postgres_data:
+    name: auratech_postgres_data
+  redis_data:
+    name: auratech_redis_data

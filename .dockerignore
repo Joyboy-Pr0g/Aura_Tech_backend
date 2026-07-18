@@ -1,22 +1,48 @@
+# Dependencies & build output
 node_modules
 dist
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment & secrets (never bake into image)
 .env
 .env.*
 !.env.example
+
+# Git & IDE
 .git
 .gitignore
+.github
 .cursor
-*.md
-!DEPLOY.md
-coverage
-.nyc_output
+.vscode
+.idea
+*.swp
+*.swo
+
+# Firebase / credentials
 secrets
 **/*firebase-adminsdk*.json
 **/*firebase-service-account*.json
-*.log
-npm-debug.log*
-.DS_Store
-Thumbs.db
+
+# Docs & local artifacts (not needed in image)
+*.md
+!README-DEPLOYMENT.md
+coverage
+.nyc_output
 server_out.txt
 agent-tools
 terminals
+
+# Docker & deploy helpers (not needed inside build context for app image)
+docker-compose.override.yml
+nginx.conf
+setup-hetzner.sh
+deploy.sh
+Makefile
+render.yaml
+DEPLOY.md
+
+# OS junk
+.DS_Store
+Thumbs.db

@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
+# AURA TECH Backend — production image (Hetzner CX23 optimized)
+# Node 20 LTS · multi-stage · non-root · internal port 5000
 
-FROM node:22-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -12,24 +14,28 @@ COPY src ./src
 
 RUN npm run build
 
-FROM node:22-alpine AS runner
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PORT=5000
 
-RUN addgroup -S aura && adduser -S aura -G aura
+# curl for container health checks
+RUN apk add --no-cache curl
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
 
-USER aura
+RUN chown -R node:node /app
 
-EXPOSE 3000
+USER node
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD node -e "const port=process.env.PORT||3000; fetch('http://127.0.0.1:'+port+'/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD curl -fsS "http://127.0.0.1:${PORT}/health" || exit 1
 
 CMD ["node", "dist/server.js"]
