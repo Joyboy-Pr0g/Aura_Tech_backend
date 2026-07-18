@@ -4,20 +4,27 @@ let redisClient: Redis | null = null;
 
 export function getRedisClient(): Redis {
   if (!redisClient) {
-    redisClient = new Redis({
-      host: process.env.REDIS_HOST || '127.0.0.1',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-      password: process.env.REDIS_PASSWORD || undefined,
-      maxRetriesPerRequest: 1,       // fail fast — callers handle errors
+    const redisUrl = process.env.REDIS_URL?.trim();
+    const sharedOptions = {
+      maxRetriesPerRequest: 1,
       enableReadyCheck: false,
-      enableOfflineQueue: false,      // reject commands immediately when not connected
+      enableOfflineQueue: false,
       connectTimeout: 2000,
       lazyConnect: true,
-      retryStrategy: (times) => {
-        if (times > 3) return null;   // stop retrying after 3 attempts
+      retryStrategy: (times: number) => {
+        if (times > 3) return null;
         return Math.min(times * 200, 1000);
       },
-    });
+    } as const;
+
+    redisClient = redisUrl
+      ? new Redis(redisUrl, sharedOptions)
+      : new Redis({
+          host: process.env.REDIS_HOST || '127.0.0.1',
+          port: parseInt(process.env.REDIS_PORT || '6379', 10),
+          password: process.env.REDIS_PASSWORD || undefined,
+          ...sharedOptions,
+        });
 
     redisClient.on('connect', () => console.log('✅ Redis connected'));
     redisClient.on('error', (err) => {

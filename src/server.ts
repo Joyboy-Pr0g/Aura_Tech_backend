@@ -39,8 +39,8 @@ async function bootstrap(): Promise<void> {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
     throw new Error('JWT_SECRET must be at least 32 characters long');
   }
-  if (!process.env.DB_PASSWORD) {
-    throw new Error('DB_PASSWORD is required');
+  if (!process.env.DATABASE_URL?.trim() && !process.env.DB_PASSWORD) {
+    throw new Error('DB_PASSWORD or DATABASE_URL is required');
   }
 
   // ─── Connect Database ───────────────────────────────────────────────────
