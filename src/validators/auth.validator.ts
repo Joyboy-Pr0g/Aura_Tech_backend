@@ -13,6 +13,10 @@ export const registerSchema = Joi.object({
       "string.pattern.base":
         "Password must have at least one uppercase letter, one lowercase letter, and one digit",
     }),
+  confirm_password: Joi.string()
+    .valid(Joi.ref('password'))
+    .required()
+    .messages({ 'any.only': 'Passwords do not match' }),
   phone: Joi.string()
     .pattern(/^(\+967|0)(7[0137]\d{7})$/)
     .messages({
@@ -91,4 +95,8 @@ export const verifyEmailChangeSchema = Joi.object({
     'string.length': 'Verification code must be 6 digits',
     'string.pattern.base': 'Verification code must be 6 digits',
   }),
+}).unknown(false);
+
+export const forgotPasswordSchema = Joi.object({
+  email: Joi.string().email().lowercase().trim().required(),
 }).unknown(false);

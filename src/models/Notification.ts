@@ -9,9 +9,15 @@ import { Product } from './Product';
 export type NotificationType =
   | 'order_confirmation'
   | 'payment_approved'
+  | 'payment_rejected'
+  | 'order_status_updated'
   | 'shipment_ready'
   | 'delivery_confirmation'
-  | 'product_available';
+  | 'product_available'
+  | 'staff_new_order'
+  | 'staff_payment_submitted'
+  | 'staff_refund_request'
+  | 'question_answered';
 
 export type NotificationStatus = 'pending' | 'sent' | 'failed';
 

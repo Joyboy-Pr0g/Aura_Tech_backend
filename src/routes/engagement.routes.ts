@@ -34,6 +34,6 @@ router.post(
   ctrl.askQuestion,
 );
 
-router.get('/orders/my/:id/history', ...customerOnly, ctrl.getOrderHistory);
+router.get('/orders/my/:orderNumber/history', ...customerOnly, ctrl.getOrderHistory);
 
 export default router;

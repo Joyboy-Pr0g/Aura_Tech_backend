@@ -25,3 +25,10 @@ export async function initializeDatabase(): Promise<void> {
   await AppDataSource.runMigrations();
   console.log('✅ Migrations applied');
 }
+
+export async function closeDatabase(): Promise<void> {
+  if (AppDataSource.isInitialized) {
+    await AppDataSource.destroy();
+    console.log('PostgreSQL connection closed');
+  }
+}

@@ -182,7 +182,9 @@ export class ProductRepository implements IProductRepository {
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.category', 'cat')
       .leftJoinAndSelect('p.sub_category', 'sub_cat')
-      .leftJoinAndSelect('p.variants', 'variants');
+      .leftJoinAndSelect('p.variants', 'variants')
+      .leftJoinAndSelect('p.created_by', 'created_by')
+      .leftJoinAndSelect('p.updated_by', 'updated_by');
 
     if (include_deleted) {
       qb.withDeleted();
@@ -201,7 +203,7 @@ export class ProductRepository implements IProductRepository {
     return this.repo.findOne({
       where: { id },
       withDeleted: true,
-      relations: ['category', 'sub_category', 'variants'],
+      relations: ['category', 'sub_category', 'variants', 'created_by', 'updated_by'],
     });
   }
 

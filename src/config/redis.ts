@@ -28,3 +28,11 @@ export function getRedisClient(): Redis {
   }
   return redisClient;
 }
+
+export async function closeRedis(): Promise<void> {
+  if (redisClient) {
+    await redisClient.quit();
+    redisClient = null;
+    console.log('Redis connection closed');
+  }
+}

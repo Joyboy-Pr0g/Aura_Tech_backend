@@ -1,3 +1,5 @@
+import { translateMessage } from '../../i18n/translate';
+
 export class APIResponse<T = unknown> {
   success: boolean;
   message: string;
@@ -22,7 +24,7 @@ export class APIResponse<T = unknown> {
   ): APIResponse<T> {
     return new APIResponse<T>({
       success: true,
-      message,
+      message: translateMessage(message),
       data,
       ...(extras
         ? {
@@ -34,10 +36,11 @@ export class APIResponse<T = unknown> {
   }
 
   static error(message: string, details?: unknown): APIResponse<null> {
+    const translated = translateMessage(message);
     return new APIResponse<null>({
       success: false,
-      message,
-      error: { message, details },
+      message: translated,
+      error: { message: translated, details },
     });
   }
 }

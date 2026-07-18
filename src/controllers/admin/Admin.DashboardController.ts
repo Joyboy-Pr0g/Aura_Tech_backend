@@ -18,4 +18,13 @@ export class AdminDashboardController {
             res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
         }
     };
+
+    navBadges = async (_req: Request, res: Response, _next: NextFunction): Promise<void> => {
+        try {
+            const data = await this.adminDashboardService.getNavBadges();
+            res.json(APIResponse.success('Nav badges fetched', data));
+        } catch (err) {
+            res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
+        }
+    };
 }

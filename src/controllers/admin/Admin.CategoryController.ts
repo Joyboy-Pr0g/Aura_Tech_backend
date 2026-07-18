@@ -12,7 +12,7 @@ export class AdminCategoryController {
 
   createCategory = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      const { name, description, parent_category_id, is_active, stock_quantity } = req.validatedData;
+      const { name, description, parent_category_id, is_active } = req.validatedData;
       const imageFile = req.file
         ? { buffer: req.file.buffer, mimetype: req.file.mimetype }
         : undefined;
@@ -22,7 +22,7 @@ export class AdminCategoryController {
         parent_category_id,
         is_active,
         imageFile,
-      });
+      }, req.user!.id);
       res.status(201).json(APIResponse.success('Category created successfully', category));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
@@ -38,7 +38,7 @@ export class AdminCategoryController {
       const category = await this.adminCategoryService.updateCategory(id, {
         ...req.validatedData,
         imageFile,
-      });
+      }, req.user!.id);
       res.json(APIResponse.success('Category updated successfully', category));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
@@ -78,7 +78,7 @@ export class AdminCategoryController {
 
   activateCategory = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      await this.adminCategoryService.activateCategory(req.params.id);
+      await this.adminCategoryService.activateCategory(req.params.id, req.user!.id);
       res.json(APIResponse.success('Category activated successfully'));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
@@ -87,7 +87,7 @@ export class AdminCategoryController {
 
   deactivateCategory = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      await this.adminCategoryService.deactivateCategory(req.params.id);
+      await this.adminCategoryService.deactivateCategory(req.params.id, req.user!.id);
       res.json(APIResponse.success('Category deactivated successfully'));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
@@ -96,7 +96,7 @@ export class AdminCategoryController {
 
   deleteCategory = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      await this.adminCategoryService.deleteCategory(req.params.id);
+      await this.adminCategoryService.deleteCategory(req.params.id, req.user!.id);
       res.json(APIResponse.success('Category deleted successfully'));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
@@ -105,7 +105,7 @@ export class AdminCategoryController {
 
   softDeleteCategory = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      await this.adminCategoryService.softDeleteCategory(req.params.id);
+      await this.adminCategoryService.softDeleteCategory(req.params.id, req.user!.id);
       res.json(APIResponse.success('Category soft deleted successfully'));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
@@ -114,7 +114,7 @@ export class AdminCategoryController {
 
   restoreCategory = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      await this.adminCategoryService.restoreCategory(req.params.id);
+      await this.adminCategoryService.restoreCategory(req.params.id, req.user!.id);
       res.json(APIResponse.success('Category restored successfully'));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
@@ -123,7 +123,7 @@ export class AdminCategoryController {
 
   unassignParentCategory = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      await this.adminCategoryService.unassignParentCategory(req.params.id);
+      await this.adminCategoryService.unassignParentCategory(req.params.id, req.user!.id);
       res.json(APIResponse.success('Parent category unassigned successfully'));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));

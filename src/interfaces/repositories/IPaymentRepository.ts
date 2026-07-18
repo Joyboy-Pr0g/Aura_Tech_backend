@@ -3,7 +3,7 @@ import { PaymentMethod } from '../../models/PaymentMethod';
 import { DecodedCursor, CursorListResult } from '../../utils/cursorPagination';
 
 export interface PaymentFilters {
-  order_id?: string;
+  search?: string;
   payment_method_id?: string;
   status?: PaymentStatus;
   min_amount?: number;
@@ -16,7 +16,15 @@ export interface IPaymentRepository {
   findById(id: string): Promise<Payment | null>;
   findByOrderId(orderId: string): Promise<Payment | null>;
   findMany(filters: PaymentFilters): Promise<CursorListResult<Payment>>;
-  create(dto: { orderId: string; amount: number; submittedByCustomerId: string; submittedAt: Date; paymentMethodId?: string | null }): Promise<Payment>;
+  create(dto: {
+    orderId: string;
+    amount: number;
+    submittedByCustomerId: string;
+    submittedAt: Date;
+    paymentMethodId?: string | null;
+    status?: PaymentStatus;
+    approvedByAdminId?: string | null;
+  }): Promise<Payment>;
   attachReceipt(id: string, url: string, publicId: string): Promise<void>;
   updateStatus(id: string, status: PaymentStatus, adminId: string | null, reason: string | null): Promise<void>;
 

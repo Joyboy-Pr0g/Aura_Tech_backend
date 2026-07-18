@@ -5,7 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { Category } from './Category';
+import { Product } from './Product';
 
 @Entity('coupons')
 export class Coupon {
@@ -41,6 +45,30 @@ export class Coupon {
   @Column({ type: 'boolean', default: true, name: 'is_active' })
   @Index()
   is_active: boolean;
+
+  @Column({ type: 'uuid', nullable: true, name: 'category_id' })
+  @Index()
+  category_id: string | null;
+
+  @ManyToOne(() => Category, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'category_id' })
+  category: Category | null;
+
+  @Column({ type: 'uuid', nullable: true, name: 'sub_category_id' })
+  @Index()
+  sub_category_id: string | null;
+
+  @ManyToOne(() => Category, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'sub_category_id' })
+  sub_category: Category | null;
+
+  @Column({ type: 'uuid', nullable: true, name: 'product_id' })
+  @Index()
+  product_id: string | null;
+
+  @ManyToOne(() => Product, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'product_id' })
+  product: Product | null;
 
   @CreateDateColumn({ name: 'created_at' })
   created_at: Date;

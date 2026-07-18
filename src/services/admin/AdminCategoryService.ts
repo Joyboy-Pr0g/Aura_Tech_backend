@@ -10,6 +10,7 @@ import { Category } from '../../models/Category';
 import { CursorListResult, decodeCreatedAtIdCursor } from '../../utils/cursorPagination';
 import { deleteFromCloudinary, uploadToCloudinary } from '../../config/cloudinary';
 import { CategoryDto } from '../../mappers/categories.mapper';
+import { logAdminAction } from '../../utils/logAdminAction';
 
 function toSlug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -52,7 +53,7 @@ export class AdminCategoryService {
     return category;
   }
 
-  async createCategory(data: AdminCreateCategoryInput): Promise<Category> {
+  async createCategory(data: AdminCreateCategoryInput, adminId: string): Promise<Category> {
     const slug = toSlug(data.name);
     if (await this.categoryRepo.existsBySlug(slug)) {
       throw new AppError(409, `Category "${data.name}" already exists`);
@@ -78,7 +79,7 @@ export class AdminCategoryService {
       image_public_id = uploaded.public_id;
     }
 
-    return this.categoryRepo.create({
+    const category = await this.categoryRepo.create({
       name: data.name,
       slug,
       description: data.description,
@@ -87,9 +88,19 @@ export class AdminCategoryService {
       image_public_id,
       is_active: data.is_active ?? true,
     });
+
+    void logAdminAction({
+      admin_id: adminId,
+      action: 'create',
+      entity_type: 'category',
+      entity_id: category.id,
+      changes_json: { name: category.name },
+    });
+
+    return category;
   }
 
-  async updateCategory(id: string, data: AdminUpdateCategoryInput): Promise<Category> {
+  async updateCategory(id: string, data: AdminUpdateCategoryInput, adminId: string): Promise<Category> {
     const category = await this.categoryRepo.findById(id);
     if (!category || category.deleted_at) {
       throw new AppError(404, 'Category not found');
@@ -137,44 +148,59 @@ export class AdminCategoryService {
 
     const updated = await this.categoryRepo.update(id, updates);
     if (!updated) throw new AppError(404, 'Category not found');
+
+    void logAdminAction({
+      admin_id: adminId,
+      action: 'update',
+      entity_type: 'category',
+      entity_id: id,
+      changes_json: updates as Record<string, unknown>,
+    });
+
     return updated;
   }
 
-  async activateCategory(id: string): Promise<void> {
+  async activateCategory(id: string, adminId: string): Promise<void> {
     const category = await this.ensureExists(id);
     if (category.is_active) throw new AppError(400, 'Category is already active');
     await this.categoryRepo.activate(id);
+    void logAdminAction({ admin_id: adminId, action: 'activate', entity_type: 'category', entity_id: id });
   }
 
-  async deactivateCategory(id: string): Promise<void> {
+  async deactivateCategory(id: string, adminId: string): Promise<void> {
     const category = await this.ensureNoChildren(id);
     if (!category.is_active) throw new AppError(400, 'Category is already inactive');
     await this.categoryRepo.deactivate(id);
+    void logAdminAction({ admin_id: adminId, action: 'deactivate', entity_type: 'category', entity_id: id });
   }
 
-  async unassignParentCategory(id: string): Promise<void> {
+  async unassignParentCategory(id: string, adminId: string): Promise<void> {
     await this.ensureExists(id);
     await this.categoryRepo.unassignParentCategory(id);
+    void logAdminAction({ admin_id: adminId, action: 'unassign_parent', entity_type: 'category', entity_id: id });
   }
 
-  async deleteCategory(id: string): Promise<void> {
+  async deleteCategory(id: string, adminId: string): Promise<void> {
     const category = await this.ensureNoChildren(id);
     if (category.image_public_id) {
       await deleteFromCloudinary(category.image_public_id).catch(() => { });
     }
     await this.categoryRepo.delete(id);
+    void logAdminAction({ admin_id: adminId, action: 'delete', entity_type: 'category', entity_id: id });
   }
 
-  async softDeleteCategory(id: string): Promise<void> {
+  async softDeleteCategory(id: string, adminId: string): Promise<void> {
     const category = await this.ensureNoChildren(id);
     if (category.deleted_at) throw new AppError(400, 'Category is already soft deleted');
     await this.categoryRepo.softDelete(id);
+    void logAdminAction({ admin_id: adminId, action: 'soft_delete', entity_type: 'category', entity_id: id });
   }
 
-  async restoreCategory(id: string): Promise<void> {
+  async restoreCategory(id: string, adminId: string): Promise<void> {
     const category = await this.ensureExists(id);
     if (!category.deleted_at) throw new AppError(400, 'Category is not soft deleted');
     await this.categoryRepo.restore(id);
+    void logAdminAction({ admin_id: adminId, action: 'restore', entity_type: 'category', entity_id: id });
   }
 
   private async ensureExists(id: string): Promise<Category> {

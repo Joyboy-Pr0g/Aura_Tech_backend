@@ -7,7 +7,7 @@ import { Order } from './Order';
 import { User } from './User';
 import { PaymentMethod } from './PaymentMethod';
 
-export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'refunded';
+export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'refunded' | 'manual_approved';
 
 @Entity('payments')
 export class Payment {

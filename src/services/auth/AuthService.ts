@@ -2,13 +2,13 @@ import { injectable, inject } from 'tsyringe';
 import { REPOSITORY_TOKENS } from '../../di/repository.tokens';
 import { IAuthRepository, SafeUser } from '../../interfaces/repositories/IAuthRepository';
 import { AppError } from '../../core/errors/AppError';
-import { hashPassword, comparePassword } from '../../utils/password';
+import { hashPassword, comparePassword, generatePassword } from '../../utils/password';
 import { generateToken, getTokenRemainingTtl } from '../../utils/jwt';
 import { getRedisClient } from '../../config/redis';
 import { Role, UserStatus } from '../../types/rbac';
 import { User } from '../../models/User';
 import { generateVerificationCode } from '../../utils/verificationCode';
-import { sendEmailChangeVerificationCode } from '../mail/emailService';
+import { sendEmailChangeVerificationCode, sendEmailVerificationCode, sendPasswordResetEmail } from '../mail/emailService';
 
 const EMAIL_CODE_TTL_SEC = 15 * 60;
 const EMAIL_VERIFIED_TTL_SEC = 30 * 60;
@@ -20,12 +20,20 @@ function emailChangeCodeKey(userId: string, email: string): string {
 function emailChangeVerifiedKey(userId: string, email: string): string {
   return `email_change_verified:${userId}:${email.toLowerCase()}`;
 }
+
+function registrationCodeKey(email: string): string {
+  return `registration_code:${email.toLowerCase()}`;
+}
+
+function registrationVerifiedKey(email: string): string {
+  return `registration_verified:${email.toLowerCase()}`;
+}
 @injectable()
 export class AuthService {
   constructor(
     @inject(REPOSITORY_TOKENS.IAuthRepository)
     private authRepo: IAuthRepository,
-  ) {}
+  ) { }
 
   private async assertRedisAvailable(): Promise<void> {
     try {
@@ -113,13 +121,88 @@ export class AuthService {
     }
   }
 
+  async sendRegistrationEmailVerificationCode(email: string): Promise<void> {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    if (await this.authRepo.existsByEmail(normalizedEmail)) {
+      throw new AppError(409, 'Email is already registered');
+    }
+
+    await this.assertRedisAvailable();
+
+    const code = generateVerificationCode();
+    const redis = getRedisClient();
+    const codeKey = registrationCodeKey(normalizedEmail);
+    const verifiedKey = registrationVerifiedKey(normalizedEmail);
+
+    await redis.set(codeKey, code, 'EX', EMAIL_CODE_TTL_SEC);
+    await redis.del(verifiedKey);
+
+    const displayName = normalizedEmail.split('@')[0] || 'there';
+    const sent = await sendEmailVerificationCode(normalizedEmail, code, displayName);
+    if (!sent) {
+      throw new AppError(500, 'Failed to send verification email');
+    }
+  }
+
+  async verifyRegistrationEmailCode(email: string, code: string): Promise<void> {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    if (await this.authRepo.existsByEmail(normalizedEmail)) {
+      throw new AppError(409, 'Email is already registered');
+    }
+
+    await this.assertRedisAvailable();
+
+    const redis = getRedisClient();
+    const codeKey = registrationCodeKey(normalizedEmail);
+    const storedCode = await redis.get(codeKey);
+
+    if (!storedCode) {
+      throw new AppError(400, 'Verification code expired or not found. Please request a new one.');
+    }
+
+    if (storedCode !== code.trim()) {
+      throw new AppError(400, 'Invalid verification code');
+    }
+
+    const verifiedKey = registrationVerifiedKey(normalizedEmail);
+    await redis.set(verifiedKey, '1', 'EX', EMAIL_VERIFIED_TTL_SEC);
+    await redis.del(codeKey);
+  }
+
+  private async isRegistrationEmailVerified(email: string): Promise<boolean> {
+    try {
+      const redis = getRedisClient();
+      const verified = await redis.get(registrationVerifiedKey(email.toLowerCase().trim()));
+      return verified === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  private async clearRegistrationVerified(email: string): Promise<void> {
+    try {
+      const redis = getRedisClient();
+      await redis.del(registrationVerifiedKey(email.toLowerCase().trim()));
+    } catch {
+      // non-critical cleanup
+    }
+  }
+
   async register(data: {
     full_name: string;
     email: string;
     password: string;
     phone?: string;
   }): Promise<{ token: string; user: SafeUser }> {
-    if (await this.authRepo.existsByEmail(data.email)) {
+    const normalizedEmail = data.email.toLowerCase().trim();
+
+    if (!(await this.isRegistrationEmailVerified(normalizedEmail))) {
+      throw new AppError(400, 'Email must be verified before registration');
+    }
+
+    if (await this.authRepo.existsByEmail(normalizedEmail)) {
       throw new AppError(409, 'Email is already registered');
     }
 
@@ -129,11 +212,13 @@ export class AuthService {
 
     const user = await this.authRepo.create({
       full_name: data.full_name,
-      email: data.email,
+      email: normalizedEmail,
       password_hash: await hashPassword(data.password),
       phone: data.phone ?? null,
       role: Role.CUSTOMER,
     });
+
+    await this.clearRegistrationVerified(normalizedEmail);
 
     const token = generateToken({ user_id: user.id, email: user.email, role: user.role });
     return { token, user: this.sanitize(user) };
@@ -229,6 +314,41 @@ export class AuthService {
     }
 
     await this.authRepo.resetPassword(userId, await hashPassword(data.new_password));
+  }
+
+  async resetPassword(email: string, password: string): Promise<void> {
+    const user = await this.authRepo.findByEmail(email);
+    if (!user || user.deleted_at) throw new AppError(404, 'User not found');
+
+    try {
+      const password_hash = await hashPassword(password);
+      await this.authRepo.resetPassword(user.id, password_hash);
+    } catch (err) {
+      throw new AppError(500, 'Failed to reset password');
+    }
+
+    try {
+      await sendPasswordResetEmail(user.email, password, user.full_name);
+    } catch (err) {
+      throw new AppError(500, 'Failed to send password reset email');
+    }
+  }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await this.authRepo.findByEmail(normalizedEmail);
+
+    if (
+      !user
+      || user.deleted_at
+      || user.role !== Role.CUSTOMER
+      || user.status === UserStatus.BLOCKED
+    ) {
+      return;
+    }
+
+    const password = generatePassword();
+    await this.resetPassword(normalizedEmail, password);
   }
 
   private sanitize(user: User): SafeUser {

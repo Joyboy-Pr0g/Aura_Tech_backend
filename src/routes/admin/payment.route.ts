@@ -9,6 +9,7 @@ import {
   paymentMethodSchema,
   updatePaymentMethodSchema,
   paymentFiltersQuerySchema,
+  createManualPaymentSchema,
 } from '../../validators/order.validator';
 
 const router = Router();
@@ -16,6 +17,7 @@ const PaymentCtrl = container.resolve(AdminPaymentController);
 const adminOnly = authorize([Role.ADMIN]);
 
 router.get('/', validateQuery(paymentFiltersQuerySchema), PaymentCtrl.getPayments);
+router.post('/', adminOnly, validateRequest(createManualPaymentSchema), PaymentCtrl.createManualPayment);
 router.get('/methods', PaymentCtrl.getPaymentMethods);
 router.post('/methods', adminOnly, validateRequest(paymentMethodSchema), PaymentCtrl.createPaymentMethod);
 router.put('/methods/:id', adminOnly, validateRequest(updatePaymentMethodSchema), PaymentCtrl.updatePaymentMethod);

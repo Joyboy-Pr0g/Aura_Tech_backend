@@ -77,6 +77,52 @@ export class AuthController {
     }
   }
 
+  async resetPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { email, password } = req.validatedData;
+      await this.authService.resetPassword(email, password);
+      res.status(200).json(APIResponse.success('Password reset successfully'));
+    } catch (err) {
+      res.status(getErrorStatusCode(err)).json(
+        APIResponse.error(err instanceof Error ? err.message : 'Failed to reset password'),
+      );
+    }
+  }
+
+  async sendRegistrationEmailVerificationCode(req: Request, res: Response): Promise<void> {
+    try {
+      await this.authService.sendRegistrationEmailVerificationCode(req.validatedData.email);
+      res.status(200).json(APIResponse.success('Verification code sent'));
+    } catch (err) {
+      res.status(getErrorStatusCode(err)).json(
+        APIResponse.error(err instanceof Error ? err.message : 'Failed to send verification code'),
+      );
+    }
+  }
+
+  async verifyRegistrationEmailCode(req: Request, res: Response): Promise<void> {
+    try {
+      const { email, code } = req.validatedData;
+      await this.authService.verifyRegistrationEmailCode(email, code);
+      res.status(200).json(APIResponse.success('Email verified successfully'));
+    } catch (err) {
+      res.status(getErrorStatusCode(err)).json(
+        APIResponse.error(err instanceof Error ? err.message : 'Failed to verify email'),
+      );
+    }
+  }
+
+  async forgotPassword(req: Request, res: Response): Promise<void> {
+    try {
+      await this.authService.requestPasswordReset(req.validatedData.email);
+      res.status(200).json(APIResponse.success('If an account exists for this email, a new password has been sent'));
+    } catch (err) {
+      res.status(getErrorStatusCode(err)).json(
+        APIResponse.error(err instanceof Error ? err.message : 'Failed to process password reset request'),
+      );
+    }
+  }
+
   async sendEmailVerificationCode(req: Request, res: Response): Promise<void> {
     try {
       await this.authService.sendEmailVerificationCode(req.user!.id, req.validatedData.email);

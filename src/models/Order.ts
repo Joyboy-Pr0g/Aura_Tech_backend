@@ -6,6 +6,9 @@ import { User } from './User';
 import { OrderItem } from './OrderItem';
 import { Payment } from './Payment';
 import { ShippingFee } from './ShippingFee';
+import { CustomerAddress } from './CustomerAddress';
+
+export type OrderPaymentType = 'bank_transfer' | 'pay_on_delivery';
 
 export type OrderStatus =
   | 'pending_payment'
@@ -49,6 +52,10 @@ export class Order {
   @Column({ type: 'uuid', nullable: true, name: 'shipping_address_id' })
   shipping_address_id: string | null;
 
+  @ManyToOne(() => CustomerAddress, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'shipping_address_id' })
+  shipping_address: CustomerAddress | null;
+
   @Column({ type: 'uuid', nullable: true, name: 'billing_address_id' })
   billing_address_id: string | null;
 
@@ -62,6 +69,9 @@ export class Order {
   @Column({ type: 'varchar', default: 'pending_payment' })
   @Index()
   status: OrderStatus;
+
+  @Column({ type: 'varchar', default: 'bank_transfer', name: 'payment_type' })
+  payment_type: OrderPaymentType;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   subtotal: number;

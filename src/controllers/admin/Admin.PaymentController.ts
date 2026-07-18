@@ -10,9 +10,9 @@ export class AdminPaymentController {
 
   getPayments = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      const { order_id, payment_method_id, status, min_amount, max_amount, limit, cursor } = req.validatedData;
+      const { search, payment_method_id, status, min_amount, max_amount, limit, cursor } = req.validatedData;
       const page = await this.paymentService.getPayments({
-        order_id,
+        search: search?.trim() || undefined,
         payment_method_id,
         status,
         min_amount,
@@ -54,6 +54,20 @@ export class AdminPaymentController {
       const { reason } = req.validatedData;
       await this.paymentService.rejectPayment(req.params.id, req.user!.id, reason);
       res.json(APIResponse.success('Payment rejected'));
+    } catch (err) {
+      res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
+    }
+  };
+
+  createManualPayment = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    try {
+      const { order_number, amount } = req.validatedData;
+      const payment = await this.paymentService.createManualPayment(
+        req.user!.id,
+        order_number,
+        amount,
+      );
+      res.status(201).json(APIResponse.success('Payment recorded', payment));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
     }

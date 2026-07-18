@@ -6,6 +6,8 @@ import {
     UserFilters,
     SafeUser
 } from '../../interfaces/repositories/IAuthRepository';
+import { IOrderRepository } from '../../interfaces/repositories/IOrderRepository';
+import { IEngagementRepository } from '../../interfaces/repositories/IEngagementRepository';
 import { REPOSITORY_TOKENS } from '../../di/repository.tokens';
 import { AppError } from '../../core/errors/AppError';
 import { CursorListResult, decodeCreatedAtIdCursor } from '../../utils/cursorPagination';
@@ -13,12 +15,17 @@ import { User } from '../../models/User';
 import { Role } from '../../types/rbac';
 import { hashPassword } from '../../utils/password';
 import { sendPasswordResetEmail } from '../mail/emailService';
+import { Order } from '../../models/Order';
+import { ProductReview } from '../../models/ProductReview';
+import { ProductQuestion } from '../../models/ProductQuestion';
 
 
 @injectable()
 export class AdminUserService {
     constructor(
         @inject(REPOSITORY_TOKENS.IAuthRepository) private authRepo: IAuthRepository,
+        @inject(REPOSITORY_TOKENS.IOrderRepository) private orderRepo: IOrderRepository,
+        @inject(REPOSITORY_TOKENS.IEngagementRepository) private engagementRepo: IEngagementRepository,
     ) { }
 
     /** Get users
@@ -41,24 +48,43 @@ export class AdminUserService {
         if (!user) throw new AppError(404, 'User not found');
         return this.sanitize(user);
     }
+
+    async getUserOrders(userId: string, limit: number, cursorRaw?: string): Promise<CursorListResult<Order>> {
+        await this.ensureExists(userId);
+        const decoded = decodeCreatedAtIdCursor(cursorRaw);
+        if (decoded === 'invalid') {
+            throw new AppError(400, 'Invalid or malformed cursor');
+        }
+        return this.orderRepo.findByCustomerId(userId, { limit, cursor: decoded });
+    }
+
+    async getUserReviews(userId: string): Promise<ProductReview[]> {
+        await this.ensureExists(userId);
+        return this.engagementRepo.findReviewsByCustomerId(userId);
+    }
+
+    async getUserQuestions(userId: string): Promise<ProductQuestion[]> {
+        await this.ensureExists(userId);
+        return this.engagementRepo.findQuestionsByCustomerId(userId);
+    }
     /** Create user
      * @param data CreateUserDto
      * @returns User
      */
-    // async createUser(data: AdminCreateUserDto): Promise<SafeUser> {
-    //     const existingUser = await this.authRepo.findByEmail(data.email);
-    //     if (existingUser) throw new AppError(400, 'User with this email already exists');
-    //     const existingUserByPhone = await this.authRepo.existsByPhone(data.phone);
-    //     if (existingUserByPhone) throw new AppError(400, 'User with this phone already exists');
-    //     const user = await this.authRepo.create({
-    //         full_name: data.full_name,
-    //         email: data.email,
-    //         password_hash: await hashPassword(data.password),
-    //         phone: data.phone ?? null,
-    //         role: data.role ?? Role.CUSTOMER,
-    //     });
-    //     return this.sanitize(user);
-    // }
+    async createUser(data: AdminCreateUserDto): Promise<SafeUser> {
+        const existingUser = await this.authRepo.findByEmail(data.email);
+        if (existingUser) throw new AppError(400, 'User with this email already exists');
+        const existingUserByPhone = await this.authRepo.existsByPhone(data.phone);
+        if (existingUserByPhone) throw new AppError(400, 'User with this phone already exists');
+        const user = await this.authRepo.create({
+            full_name: data.full_name,
+            email: data.email,
+            password_hash: await hashPassword(data.password),
+            phone: data.phone ?? null,
+            role: data.role ?? Role.CUSTOMER,
+        });
+        return this.sanitize(user);
+    }
 
     /** Update user
      * @param id string

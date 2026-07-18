@@ -76,7 +76,11 @@ export class EngagementController {
   createReview = async (req: Request, res: Response): Promise<void> => {
     try {
       const data = await this.engagementService.createReview(req.user!.id, req.validatedData);
-      res.status(201).json(APIResponse.success('Review submitted', data));
+      const message =
+        data.moderation_status === 'pending'
+          ? 'Review submitted for moderation'
+          : 'Review submitted';
+      res.status(201).json(APIResponse.success(message, data));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
     }
@@ -109,7 +113,8 @@ export class EngagementController {
         req.params.productId,
         req.validatedData.question,
       );
-      res.status(201).json(APIResponse.success('Question submitted', data));
+      const message = data.is_published ? 'Question submitted' : 'Question submitted for moderation';
+      res.status(201).json(APIResponse.success(message, data));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
     }
@@ -117,8 +122,8 @@ export class EngagementController {
 
   getOrderHistory = async (req: Request, res: Response): Promise<void> => {
     try {
-      await this.orderService.getOrderById(req.params.id, req.user!.id);
-      const data = await this.engagementService.getOrderStatusHistory(req.params.id);
+      await this.orderService.getOrderByCustomerIdAndOrderNumber(req.user!.id, req.params.orderNumber);
+      const data = await this.engagementService.getOrderStatusHistory(req.params.orderNumber);
       res.json(APIResponse.success('Order history fetched', data));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));

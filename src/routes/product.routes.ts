@@ -12,6 +12,7 @@ const ctrl = container.resolve(ProductController);
 router.use(optionalProtect);
 router.get('/brands', (req, res) => ctrl.brands(req, res));
 router.get('/max-price', (req, res) => ctrl.maxProductPrice(req, res));
+router.get('/trending', (req, res) => ctrl.getTrending(req, res));
 
 router.get('/', validateQuery(listProductsQuerySchema), (req, res) => ctrl.getMany(req, res));
 router.get('/slug/:slug', (req, res) => ctrl.getBySlug(req, res));

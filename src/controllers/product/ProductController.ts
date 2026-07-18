@@ -56,6 +56,16 @@ export class ProductController {
     }
   }
 
+  getTrending = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const limit = Math.min(Number(req.query.limit) || 20, 50);
+      const data = await this.productService.getTrending(limit);
+      res.json(APIResponse.success('Trending products fetched', data));
+    } catch (err) {
+      res.status(getErrorStatusCode(err)).json(APIResponse.error(err instanceof Error ? err.message : 'Failed'));
+    }
+  };
+
   brands = async (_req: Request, res: Response): Promise<void> => {
     try {
       const brands = await this.productService.getBrands();

@@ -10,6 +10,17 @@ import { OrderRepository } from '../repositories/order/OrderRepository';
 import { PaymentRepository } from '../repositories/payment/PaymentRepository';
 import { AddressRepository } from '../repositories/address/AddressRepository';
 import { ShippingFeeRepository } from '../repositories/shipping/ShippingFeeRepository';
+import { WebsiteSettingsRepository } from '../repositories/websiteSettings/WebsiteSettingsRepository';
+import { EngagementRepository } from '../repositories/engagement/EngagementRepository';
+import { SearchRepository } from '../repositories/search/SearchRepository';
+import { TrendingRepository } from '../repositories/trending/TrendingRepository';
+import { AnalyticsRepository } from '../repositories/analytics/AnalyticsRepository';
+import { CouponRepository } from '../repositories/coupon/CouponRepository';
+import { BlogRepository } from '../repositories/blog/BlogRepository';
+import { NotificationRepository } from '../repositories/notification/NotificationRepository';
+import { InventoryRepository } from '../repositories/inventory/InventoryRepository';
+import { RefundRequestRepository } from '../repositories/refund/RefundRequestRepository';
+import { ExpenseRepository } from '../repositories/expense/ExpenseRepository';
 
 // Services
 import { AuthService } from '../services/auth/AuthService';
@@ -20,10 +31,22 @@ import { OrderService } from '../services/order/OrderService';
 import { PaymentService } from '../services/payment/PaymentService';
 import { AddressService } from '../services/address/AddressService';
 import { ShippingFeeService } from '../services/shipping/ShippingFeeService';
+import { WebsiteSettingsService } from '../services/websiteSettings/WebsiteSettingsService';
 import { EngagementService } from '../services/engagement/EngagementService';
 import { AdminDashboardService } from '../services/admin/AdminDashboardService';
 import { AdminCategoryService } from '../services/admin/AdminCategoryService';
 import { AdminProductService } from '../services/admin/AdminProductService';
+import { AdminUserService } from '../services/admin/AdminUserService';
+import { AdminEngagementService } from '../services/admin/AdminEngagementService';
+import { SearchService } from '../services/search/SearchService';
+import { TrendingService } from '../services/trending/TrendingService';
+import { CouponService } from '../services/coupon/CouponService';
+import { BlogService } from '../services/blog/BlogService';
+import { NotificationService } from '../services/notification/NotificationService';
+import { AdminAnalyticsService } from '../services/admin/AdminAnalyticsService';
+import { AdminInventoryService } from '../services/admin/AdminInventoryService';
+import { RefundRequestService } from '../services/refund/RefundRequestService';
+import { ExpenseService } from '../services/expense/ExpenseService';
 
 // Controllers
 import { AuthController } from '../controllers/auth/AuthController';
@@ -42,6 +65,21 @@ import { AddressController } from '../controllers/address/AddressController';
 import { EngagementController } from '../controllers/engagement/EngagementController';
 import { ShippingFeeController } from '../controllers/shipping/ShippingFeeController';
 import { AdminShippingFeeController } from '../controllers/admin/Admin.ShippingFeeController';
+import { AdminEngagementController } from '../controllers/admin/Admin.EngagementController';
+import { SearchController } from '../controllers/search/SearchController';
+import { NotificationController } from '../controllers/notification/NotificationController';
+import { ReminderController } from '../controllers/reminder/ReminderController';
+import { CouponController } from '../controllers/coupon/CouponController';
+import { BlogController } from '../controllers/blog/BlogController';
+import { VisitController } from '../controllers/visit/VisitController';
+import { AdminAnalyticsController } from '../controllers/admin/Admin.AnalyticsController';
+import { AdminCouponController } from '../controllers/admin/Admin.CouponController';
+import { AdminBlogController } from '../controllers/admin/Admin.BlogController';
+import { AdminActionLogController } from '../controllers/admin/Admin.ActionLogController';
+import { AdminWebsiteSettingsController } from '../controllers/admin/Admin.WebsiteSettingsController';
+import { WebsiteSettingsController } from '../controllers/websiteSettings/WebsiteSettingsController';
+import { RefundRequestController, AdminRefundRequestController } from '../controllers/refund/RefundRequestController';
+import { AdminExpenseController } from '../controllers/expense/AdminExpenseController';
 
 export function registerDependencies(): void {
   // ─── Repositories ────────────────────────────────────────────────────────
@@ -53,6 +91,17 @@ export function registerDependencies(): void {
   container.registerSingleton(REPOSITORY_TOKENS.IPaymentRepository, PaymentRepository);
   container.registerSingleton(REPOSITORY_TOKENS.IAddressRepository, AddressRepository);
   container.registerSingleton(REPOSITORY_TOKENS.IShippingFeeRepository, ShippingFeeRepository);
+  container.registerSingleton(REPOSITORY_TOKENS.IWebsiteSettingsRepository, WebsiteSettingsRepository);
+  container.registerSingleton(REPOSITORY_TOKENS.IEngagementRepository, EngagementRepository);
+  container.registerSingleton(REPOSITORY_TOKENS.ISearchRepository, SearchRepository);
+  container.registerSingleton(REPOSITORY_TOKENS.ITrendingRepository, TrendingRepository);
+  container.registerSingleton(REPOSITORY_TOKENS.IAnalyticsRepository, AnalyticsRepository);
+  container.registerSingleton(REPOSITORY_TOKENS.ICouponRepository, CouponRepository);
+  container.registerSingleton(REPOSITORY_TOKENS.IBlogRepository, BlogRepository);
+  container.registerSingleton(REPOSITORY_TOKENS.INotificationRepository, NotificationRepository);
+  container.registerSingleton(REPOSITORY_TOKENS.IInventoryRepository, InventoryRepository);
+  container.registerSingleton(REPOSITORY_TOKENS.IRefundRequestRepository, RefundRequestRepository);
+  container.registerSingleton(REPOSITORY_TOKENS.IExpenseRepository, ExpenseRepository);
 
   // ─── Services ────────────────────────────────────────────────────────────
   container.registerSingleton(AuthService, AuthService);
@@ -63,10 +112,22 @@ export function registerDependencies(): void {
   container.registerSingleton(PaymentService, PaymentService);
   container.registerSingleton(AddressService, AddressService);
   container.registerSingleton(ShippingFeeService, ShippingFeeService);
+  container.registerSingleton(WebsiteSettingsService, WebsiteSettingsService);
   container.registerSingleton(EngagementService, EngagementService);
   container.registerSingleton(AdminDashboardService, AdminDashboardService);
   container.registerSingleton(AdminCategoryService, AdminCategoryService);
   container.registerSingleton(AdminProductService, AdminProductService);
+  container.registerSingleton(AdminUserService, AdminUserService);
+  container.registerSingleton(AdminEngagementService, AdminEngagementService);
+  container.registerSingleton(SearchService, SearchService);
+  container.registerSingleton(TrendingService, TrendingService);
+  container.registerSingleton(CouponService, CouponService);
+  container.registerSingleton(BlogService, BlogService);
+  container.registerSingleton(NotificationService, NotificationService);
+  container.registerSingleton(AdminAnalyticsService, AdminAnalyticsService);
+  container.registerSingleton(AdminInventoryService, AdminInventoryService);
+  container.registerSingleton(RefundRequestService, RefundRequestService);
+  container.registerSingleton(ExpenseService, ExpenseService);
 
   // ─── Controllers ─────────────────────────────────────────────────────────
   container.registerSingleton(AuthController, AuthController);
@@ -78,11 +139,27 @@ export function registerDependencies(): void {
   container.registerSingleton(AddressController, AddressController);
   container.registerSingleton(EngagementController, EngagementController);
   container.registerSingleton(ShippingFeeController, ShippingFeeController);
+  container.registerSingleton(WebsiteSettingsController, WebsiteSettingsController);
   container.registerSingleton(AdminShippingFeeController, AdminShippingFeeController);
+  container.registerSingleton(AdminWebsiteSettingsController, AdminWebsiteSettingsController);
+  container.registerSingleton(AdminEngagementController, AdminEngagementController);
+  container.registerSingleton(SearchController, SearchController);
+  container.registerSingleton(NotificationController, NotificationController);
+  container.registerSingleton(ReminderController, ReminderController);
+  container.registerSingleton(CouponController, CouponController);
+  container.registerSingleton(BlogController, BlogController);
+  container.registerSingleton(VisitController, VisitController);
+  container.registerSingleton(AdminAnalyticsController, AdminAnalyticsController);
+  container.registerSingleton(AdminCouponController, AdminCouponController);
+  container.registerSingleton(AdminBlogController, AdminBlogController);
+  container.registerSingleton(AdminActionLogController, AdminActionLogController);
   container.registerSingleton(AdminDashboardController, AdminDashboardController);
   container.registerSingleton(AdminUserController, AdminUserController);
   container.registerSingleton(AdminProductController, AdminProductController);
   container.registerSingleton(AdminOrderController, AdminOrderController);
   container.registerSingleton(AdminCategoryController, AdminCategoryController);
   container.registerSingleton(AdminPaymentController, AdminPaymentController);
+  container.registerSingleton(RefundRequestController, RefundRequestController);
+  container.registerSingleton(AdminRefundRequestController, AdminRefundRequestController);
+  container.registerSingleton(AdminExpenseController, AdminExpenseController);
 }

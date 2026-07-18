@@ -2,6 +2,7 @@ import { injectable, inject } from 'tsyringe';
 import { REPOSITORY_TOKENS } from '../../di/repository.tokens';
 import { IProductRepository, ProductFilters } from '../../interfaces/repositories/IProductRepository';
 import { ICategoryRepository } from '../../interfaces/repositories/ICategoryRepository';
+import { IEngagementRepository } from '../../interfaces/repositories/IEngagementRepository';
 import { AppError } from '../../core/errors/AppError';
 import { uploadToCloudinary, deleteFromCloudinary } from '../../config/cloudinary';
 import { AppDataSource } from '../../config/database';
@@ -13,6 +14,8 @@ import {
   decodeCreatedAtIdCursor,
 } from '../../utils/cursorPagination';
 import { ParsedProductUploadFile, VariantImageRecord, VariantInput } from '../../utils/productUploadFiles';
+import { SearchService } from '../search/SearchService';
+import { TrendingService } from '../trending/TrendingService';
 
 function toSlug(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -34,6 +37,10 @@ export class ProductService {
     private productRepo: IProductRepository,
     @inject(REPOSITORY_TOKENS.ICategoryRepository)
     private categoryRepo: ICategoryRepository,
+    @inject(REPOSITORY_TOKENS.IEngagementRepository)
+    private engagementRepo: IEngagementRepository,
+    @inject(SearchService) private searchService: SearchService,
+    @inject(TrendingService) private trendingService: TrendingService,
   ) { }
 
   async getMany(
@@ -43,7 +50,11 @@ export class ProductService {
     if (decoded === 'invalid') {
       throw new AppError(400, 'Invalid or malformed cursor');
     }
-    return this.productRepo.findMany({ ...filters, cursor: decoded });
+    const result = await this.productRepo.findMany({ ...filters, cursor: decoded });
+    if (filters.search?.trim()) {
+      void this.searchService.logSearch(filters.userId ?? null, filters.search, result.items.length);
+    }
+    return result;
   }
 
   async getById(id: string): Promise<Product> {
@@ -53,9 +64,22 @@ export class ProductService {
   }
 
   async getBySlug(slug: string, userId?: string): Promise<Product> {
-    const p = await this.productRepo.findBySlug(slug, userId);
-    if (!p) throw new AppError(404, 'Product not found');
-    return p;
+    const product = await this.productRepo.findBySlug(slug, userId);
+    if (!product) throw new AppError(404, 'Product not found');
+
+    const engagement = await this.engagementRepo.findProductDetailEngagement(product.id);
+    product.reviews = engagement.reviews;
+    product.questions = engagement.questions;
+    product.average_rating = engagement.average_rating;
+    product.rating_count = engagement.rating_count;
+
+    void this.trendingService.logProductView(product.id, userId ?? null);
+
+    return product;
+  }
+
+  async getTrending(limit = 20) {
+    return this.trendingService.getTrendingProducts(limit);
   }
 
   async create(data: {

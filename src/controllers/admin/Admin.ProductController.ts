@@ -118,7 +118,7 @@ export class AdminProductController {
 
   deleteProduct = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      await this.adminProductService.deleteProduct(req.params.id);
+      await this.adminProductService.deleteProduct(req.params.id, req.user!.id);
       res.json(APIResponse.success('Product deleted successfully'));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
@@ -127,7 +127,7 @@ export class AdminProductController {
 
   softDeleteProduct = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      await this.adminProductService.softDeleteProduct(req.params.id);
+      await this.adminProductService.softDeleteProduct(req.params.id, req.user!.id);
       res.json(APIResponse.success('Product soft deleted successfully'));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
@@ -136,7 +136,7 @@ export class AdminProductController {
 
   restoreProduct = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      await this.adminProductService.restoreProduct(req.params.id);
+      await this.adminProductService.restoreProduct(req.params.id, req.user!.id);
       res.json(APIResponse.success('Product restored successfully'));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));

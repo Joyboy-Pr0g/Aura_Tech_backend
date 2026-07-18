@@ -8,7 +8,6 @@ import { EntityManager } from 'typeorm';
 import {
   applyCreatedAtIdCursorDesc,
   CursorListResult,
-  DecodedCursor,
   DEFAULT_LIMIT,
   paginateByCursor,
 } from '../../utils/cursorPagination';
@@ -29,7 +28,14 @@ export class OrderRepository implements IOrderRepository {
   async findById(id: string): Promise<Order | null> {
     return this.repo.findOne({
       where: { id },
-      relations: ['items', 'items.product', 'items.variant', 'payment', 'payment.payment_method', 'customer', 'shipping_fee'],
+      relations: ['items', 'items.product', 'items.variant', 'payment', 'payment.payment_method', 'customer', 'shipping_fee', 'shipping_address'],
+    });
+  }
+
+  async findByCustomerIdAndOrderNumber(customerId: string, orderNumber: string): Promise<Order | null> {
+    return this.repo.findOne({
+      where: { customer_id: customerId, order_number: orderNumber },
+      relations: ['items', 'items.product', 'items.variant', 'payment', 'payment.payment_method', 'customer', 'shipping_fee', 'shipping_address'],
     });
   }
 
@@ -39,19 +45,34 @@ export class OrderRepository implements IOrderRepository {
 
   async findByCustomerId(
     customerId: string,
-    limit: number,
-    cursor: DecodedCursor | null,
+    filters: OrderFilters,
   ): Promise<CursorListResult<Order>> {
+    const { status, search, limit = DEFAULT_LIMIT, cursor } = filters;
     const qb = this.repo
       .createQueryBuilder('o')
       .leftJoinAndSelect('o.items', 'items')
+      .leftJoinAndSelect('items.product', 'product')
+      .leftJoinAndSelect('items.variant', 'variant')
       .leftJoinAndSelect('o.payment', 'payment')
       .leftJoinAndSelect('o.shipping_fee', 'shipping_fee')
       .where('o.customer_id = :customerId', { customerId });
 
-    applyCreatedAtIdCursorDesc(qb, 'o', cursor);
+    if (status) {
+      qb.andWhere('o.status = :status', { status });
+    }
 
-    qb.orderBy('o.created_at', 'DESC')
+    if (search?.trim()) {
+      qb.andWhere(
+        `(LOWER(o.order_number) LIKE LOWER(:search)
+          OR LOWER(product.title) LIKE LOWER(:search))`,
+        { search: `%${search.trim()}%` },
+      );
+    }
+
+    applyCreatedAtIdCursorDesc(qb, 'o', cursor ?? null);
+
+    qb.distinct(true)
+      .orderBy('o.created_at', 'DESC')
       .addOrderBy('o.id', 'DESC')
       .take(limit + 1);
 
@@ -60,15 +81,23 @@ export class OrderRepository implements IOrderRepository {
   }
 
   async findAll(filters: OrderFilters): Promise<CursorListResult<Order>> {
-    const { status, limit = DEFAULT_LIMIT, cursor } = filters;
+    const { status, search, limit = DEFAULT_LIMIT, cursor } = filters;
     const qb = this.repo
       .createQueryBuilder('o')
-      .leftJoinAndSelect('o.items', 'items')
-      .leftJoinAndSelect('o.payment', 'payment')
-      .leftJoinAndSelect('o.customer', 'customer');
+      .leftJoinAndSelect('o.customer', 'customer')
+      .leftJoinAndSelect('o.payment', 'payment');
 
     if (status) {
       qb.andWhere('o.status = :status', { status });
+    }
+
+    if (search?.trim()) {
+      qb.andWhere(
+        `(LOWER(o.order_number) LIKE LOWER(:search)
+          OR LOWER(customer.full_name) LIKE LOWER(:search)
+          OR LOWER(customer.email) LIKE LOWER(:search))`,
+        { search: `%${search.trim()}%` },
+      );
     }
 
     applyCreatedAtIdCursorDesc(qb, 'o', cursor ?? null);
@@ -90,7 +119,8 @@ export class OrderRepository implements IOrderRepository {
         shipping_address_id: dto.shipping_address_id,
         billing_address_id: dto.billing_address_id,
         shipping_fee_id: dto.shipping_fee_id,
-        status: 'pending_payment',
+        status: dto.initial_status ?? 'pending_payment',
+        payment_type: dto.payment_type ?? 'bank_transfer',
         subtotal: dto.subtotal,
         discount_total: dto.discount_total,
         tax: dto.tax,
@@ -141,6 +171,13 @@ export class OrderRepository implements IOrderRepository {
       change_reason: reason,
     });
     await historyRepo.save(entry);
+  }
+
+  async findStatusHistory(orderId: string): Promise<OrderStatusHistory[]> {
+    return this.historyRepo.find({
+      where: { order_id: orderId },
+      order: { created_at: 'ASC' },
+    });
   }
 
   async getTotalOrderCount(): Promise<number> {

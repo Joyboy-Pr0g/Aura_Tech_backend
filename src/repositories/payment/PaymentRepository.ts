@@ -33,8 +33,13 @@ export class PaymentRepository implements IPaymentRepository {
       .leftJoinAndSelect('p.submitted_by_customer', 'customer')
       .leftJoinAndSelect('p.payment_method', 'payment_method');
 
-    if (filters.order_id) {
-      qb.andWhere('p.order_id = :order_id', { order_id: filters.order_id });
+    if (filters.search?.trim()) {
+      qb.andWhere(
+        `(LOWER(order.order_number) LIKE LOWER(:search)
+          OR LOWER(customer.full_name) LIKE LOWER(:search)
+          OR LOWER(customer.email) LIKE LOWER(:search))`,
+        { search: `%${filters.search.trim()}%` },
+      );
     }
 
     if (filters.payment_method_id) {
@@ -62,14 +67,27 @@ export class PaymentRepository implements IPaymentRepository {
     return paginateByCursor(rows, limit);
   }
 
-  async create(dto: { orderId: string; amount: number; submittedByCustomerId: string; submittedAt: Date; paymentMethodId?: string | null }): Promise<Payment> {
+  async create(dto: {
+    orderId: string;
+    amount: number;
+    submittedByCustomerId: string;
+    submittedAt: Date;
+    paymentMethodId?: string | null;
+    status?: PaymentStatus;
+    approvedByAdminId?: string | null;
+  }): Promise<Payment> {
+    const status = dto.status ?? 'pending';
     const payment = this.repo.create({
       order_id: dto.orderId,
       amount: dto.amount,
       payment_method_id: dto.paymentMethodId ?? null,
-      status: 'pending',
+      status,
       submitted_by_customer_id: dto.submittedByCustomerId,
       submitted_at: dto.submittedAt,
+      approved_by_admin_id:
+        status === 'approved' || status === 'manual_approved' ? dto.approvedByAdminId ?? null : null,
+      approved_at:
+        status === 'approved' || status === 'manual_approved' ? new Date() : null,
     });
     return this.repo.save(payment);
   }
@@ -83,7 +101,7 @@ export class PaymentRepository implements IPaymentRepository {
 
   async updateStatus(id: string, status: PaymentStatus, adminId: string | null, reason: string | null): Promise<void> {
     const patch: Partial<Payment> = { status };
-    if (status === 'approved') {
+    if (status === 'approved' || status === 'manual_approved') {
       patch.approved_by_admin_id = adminId;
       patch.approved_at = new Date();
     } else if (status === 'rejected') {

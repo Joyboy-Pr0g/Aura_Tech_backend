@@ -14,6 +14,8 @@ import { Category } from './Category';
 import { User } from './User';
 import { ProductVariant } from './ProductVariant';
 import { Wishlist } from './Wishlist';
+import { ProductReview } from './ProductReview';
+import { ProductQuestion } from './ProductQuestion';
 
 export interface ProductImage {
   url: string;
@@ -54,6 +56,9 @@ export class Product {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   price: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'cost_price' })
+  cost_price: number | null;
+
   @Column({ type: 'varchar', nullable: true })
   @Index()
   brand: string | null;
@@ -90,8 +95,18 @@ export class Product {
   @OneToMany(() => Wishlist, (wishlist) => wishlist.product)
   wishlists: Wishlist[];
 
+  @OneToMany(() => ProductReview, (review) => review.product)
+  reviews: ProductReview[];
+
+  @OneToMany(() => ProductQuestion, (question) => question.product)
+  questions: ProductQuestion[];
+
   /** Populated in list queries when a customer id is provided — not a DB column */
   is_wishlisted?: boolean;
+
+  /** Populated on slug detail queries — not DB columns */
+  average_rating?: number;
+  rating_count?: number;
 
   @DeleteDateColumn({ name: 'deleted_at', nullable: true })
   deleted_at: Date | null;

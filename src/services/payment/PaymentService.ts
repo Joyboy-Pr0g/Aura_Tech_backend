@@ -8,13 +8,18 @@ import { REPOSITORY_TOKENS } from '../../di/repository.tokens';
 import { uploadToCloudinary, deleteFromCloudinary } from '../../config/cloudinary';
 import { AppError } from '../../core/errors/AppError';
 import { Payment } from '../../models/Payment';
+import { Order } from '../../models/Order';
 import { decodeCreatedAtIdCursor } from '../../utils/cursorPagination';
+import { EntityManager } from 'typeorm';
+import { NotificationService } from '../notification/NotificationService';
+import { logAdminAction } from '../../utils/logAdminAction';
 
 @injectable()
 export class PaymentService {
   constructor(
     @inject(REPOSITORY_TOKENS.IPaymentRepository) private paymentRepo: IPaymentRepository,
     @inject(REPOSITORY_TOKENS.IOrderRepository) private orderRepo: IOrderRepository,
+    @inject(NotificationService) private notificationService: NotificationService,
   ) {}
 
   async submitPayment(
@@ -26,6 +31,9 @@ export class PaymentService {
     const order = await this.orderRepo.findById(orderId);
     if (!order) throw new AppError(404, 'Order not found');
     if (order.customer_id !== customerId) throw new AppError(403, 'Access denied');
+    if (order.payment_type === 'pay_on_delivery') {
+      throw new AppError(400, 'This order uses pay on delivery');
+    }
     if (order.status !== 'pending_payment') {
       throw new AppError(400, `Order is ${order.status}, cannot submit payment`);
     }
@@ -48,7 +56,6 @@ export class PaymentService {
       paymentMethodId,
     });
 
-    // Upload receipt
     const uploaded = await uploadToCloudinary(
       file.buffer,
       `aura-tech/receipts/${orderId}`,
@@ -57,6 +64,13 @@ export class PaymentService {
     await this.paymentRepo.attachReceipt(payment.id, uploaded.url, uploaded.public_id);
     payment.receipt_document_url = uploaded.url;
     payment.receipt_public_id = uploaded.public_id;
+
+    void this.notificationService.notifyStaff({
+      type: 'staff_payment_submitted',
+      title: 'دفع جديد',
+      message: `أرسل العميل إيصال دفع للطلب ${order.order_number}. راجع المدفوعات في لوحة التحكم.`,
+      relatedOrderId: order.id,
+    });
 
     return payment;
   }
@@ -70,29 +84,129 @@ export class PaymentService {
 
     await AppDataSource.transaction(async (manager) => {
       await this.paymentRepo.updateStatus(paymentId, 'approved', adminId, null);
-
-      // Transition order → payment_confirmed
-      await this.orderRepo.updateStatus(payment.order_id, 'payment_confirmed');
-      await this.orderRepo.recordStatusHistory(
-        payment.order_id, 'pending_payment', 'payment_confirmed', adminId, 'Payment approved by admin',
-      );
-
-      // Convert reserved → actual sold (decrement stock, leave reserved as is — stock_quantity decremented)
-      const order = await this.orderRepo.findById(payment.order_id);
-      if (order?.items) {
-        const productRepo = manager.getRepository(Product);
-        const variantRepo = manager.getRepository(ProductVariant);
-        for (const item of order.items) {
-          if (item.variant_id) {
-            await variantRepo.decrement({ id: item.variant_id }, 'stock_quantity', item.quantity);
-            await variantRepo.decrement({ id: item.variant_id }, 'reserved_quantity', item.quantity);
-          } else {
-            await productRepo.decrement({ id: item.product_id }, 'stock_quantity', item.quantity);
-            await productRepo.decrement({ id: item.product_id }, 'reserved_quantity', item.quantity);
-          }
-        }
-      }
+      await this.finalizeApprovedPayment(payment.order_id, adminId, manager, 'Payment approved by admin');
     });
+
+    const order = await this.orderRepo.findById(payment.order_id);
+    if (order) {
+      void this.notificationService.notifyCustomer({
+        customerId: order.customer_id,
+        type: 'payment_approved',
+        title: 'Payment approved',
+        message: `Payment for order ${order.order_number} has been approved.`,
+        relatedOrderId: order.id,
+      });
+    }
+
+    void logAdminAction({
+      admin_id: adminId,
+      action: 'approve',
+      entity_type: 'payment',
+      entity_id: paymentId,
+    });
+  }
+
+  async createManualPayment(adminId: string, orderNumber: string, amount: number): Promise<Payment> {
+    const order = await this.orderRepo.findByOrderNumber(orderNumber.trim());
+    if (!order) throw new AppError(404, 'Order not found');
+
+    const fullOrder = await this.orderRepo.findById(order.id);
+    if (!fullOrder) throw new AppError(404, 'Order not found');
+    if (fullOrder.status === 'cancelled' || fullOrder.status === 'refunded') {
+      throw new AppError(400, `Cannot record payment for ${fullOrder.status} order`);
+    }
+
+    const existing = await this.paymentRepo.findByOrderId(fullOrder.id);
+    if (existing) throw new AppError(409, 'Payment already exists for this order');
+
+    let payment!: Payment;
+
+    await AppDataSource.transaction(async (manager) => {
+      payment = await this.paymentRepo.create({
+        orderId: fullOrder.id,
+        amount,
+        submittedByCustomerId: fullOrder.customer_id,
+        submittedAt: new Date(),
+        paymentMethodId: null,
+        status: 'manual_approved',
+        approvedByAdminId: adminId,
+      });
+
+      if (fullOrder.status === 'pending_payment') {
+        await this.orderRepo.updateStatus(fullOrder.id, 'payment_confirmed');
+        await this.orderRepo.recordStatusHistory(
+          fullOrder.id,
+          'pending_payment',
+          'payment_confirmed',
+          adminId,
+          'Payment manually recorded by admin',
+          manager,
+        );
+      }
+
+      await this.fulfillOrderStock(fullOrder, manager);
+    });
+
+    void this.notificationService.notifyCustomer({
+      customerId: fullOrder.customer_id,
+      type: 'payment_approved',
+      title: 'Payment recorded',
+      message: `Payment for order ${fullOrder.order_number} has been recorded.`,
+      relatedOrderId: fullOrder.id,
+    });
+
+    void logAdminAction({
+      admin_id: adminId,
+      action: 'create',
+      entity_type: 'payment',
+      entity_id: payment!.id,
+      changes_json: {
+        manual: true,
+        order_number: fullOrder.order_number,
+        amount,
+      },
+    });
+
+    return payment!;
+  }
+
+  private async finalizeApprovedPayment(
+    orderId: string,
+    adminId: string,
+    manager: EntityManager,
+    historyReason: string,
+  ): Promise<void> {
+    await this.orderRepo.updateStatus(orderId, 'payment_confirmed');
+    await this.orderRepo.recordStatusHistory(
+      orderId,
+      'pending_payment',
+      'payment_confirmed',
+      adminId,
+      historyReason,
+      manager,
+    );
+
+    const order = await this.orderRepo.findById(orderId);
+    if (order) {
+      await this.fulfillOrderStock(order, manager);
+    }
+  }
+
+  private async fulfillOrderStock(order: Order, manager: EntityManager): Promise<void> {
+    if (!order.items?.length) return;
+
+    const productRepo = manager.getRepository(Product);
+    const variantRepo = manager.getRepository(ProductVariant);
+
+    for (const item of order.items) {
+      if (item.variant_id) {
+        await variantRepo.decrement({ id: item.variant_id }, 'stock_quantity', item.quantity);
+        await variantRepo.decrement({ id: item.variant_id }, 'reserved_quantity', item.quantity);
+      } else {
+        await productRepo.decrement({ id: item.product_id }, 'stock_quantity', item.quantity);
+        await productRepo.decrement({ id: item.product_id }, 'reserved_quantity', item.quantity);
+      }
+    }
   }
 
   async rejectPayment(paymentId: string, adminId: string, reason: string): Promise<void> {
@@ -104,6 +218,25 @@ export class PaymentService {
     if (!reason?.trim()) throw new AppError(400, 'Rejection reason is required');
 
     await this.paymentRepo.updateStatus(paymentId, 'rejected', adminId, reason);
+
+    const order = await this.orderRepo.findById(payment.order_id);
+    if (order) {
+      void this.notificationService.notifyCustomer({
+        customerId: order.customer_id,
+        type: 'payment_rejected',
+        title: 'Payment rejected',
+        message: `Payment for order ${order.order_number} was rejected: ${reason}`,
+        relatedOrderId: order.id,
+      });
+    }
+
+    void logAdminAction({
+      admin_id: adminId,
+      action: 'reject',
+      entity_type: 'payment',
+      entity_id: paymentId,
+      reason,
+    });
   }
 
   async getPayments(filters: Omit<PaymentFilters, 'cursor'> & { cursor?: string }) {
@@ -125,7 +258,6 @@ export class PaymentService {
     return payment;
   }
 
-  // Payment methods (bank accounts shown to customers)
   async getPaymentMethods() {
     return this.paymentRepo.findAllMethods();
   }

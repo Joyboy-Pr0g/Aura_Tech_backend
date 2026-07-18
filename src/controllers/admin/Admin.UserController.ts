@@ -11,15 +11,15 @@ export class AdminUserController {
         @inject(AdminUserService) private adminUserService: AdminUserService,
     ) { }
 
-    // createUser = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-    //     try {
-    //         const { full_name, email, password, phone, role } = req.validatedData;
-    //         const user = await this.adminUserService.createUser({ full_name, email, password, phone, role });
-    //         res.json(APIResponse.success('User created successfully', user));
-    //     } catch (err) {
-    //         res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
-    //     }
-    // };
+    createUser = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+        try {
+            const { full_name, email, password, phone, role } = req.validatedData;
+            const user = await this.adminUserService.createUser({ full_name, email, password, phone, role });
+            res.json(APIResponse.success('User created successfully', user));
+        } catch (err) {
+            res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
+        }
+    };
     // updateUser = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     //     try {
     //         const { id } = req.params;
@@ -48,6 +48,43 @@ export class AdminUserController {
             res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
         }
     }
+    getUserOrders = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+        try {
+            const { id } = req.params;
+            const { limit, cursor } = req.validatedData;
+            const page = await this.adminUserService.getUserOrders(
+                id,
+                Math.min(Number(limit) || 20, 50),
+                cursor,
+            );
+            res.json(
+                APIResponse.success('User orders retrieved', page.items, {
+                    next_cursor: page.next_cursor,
+                    has_more: page.has_more,
+                }),
+            );
+        } catch (err) {
+            res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
+        }
+    };
+    getUserReviews = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+        try {
+            const { id } = req.params;
+            const reviews = await this.adminUserService.getUserReviews(id);
+            res.json(APIResponse.success('User reviews retrieved', reviews));
+        } catch (err) {
+            res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
+        }
+    };
+    getUserQuestions = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+        try {
+            const { id } = req.params;
+            const questions = await this.adminUserService.getUserQuestions(id);
+            res.json(APIResponse.success('User questions retrieved', questions));
+        } catch (err) {
+            res.status(getErrorStatusCode(err)).json(APIResponse.error((err as Error).message));
+        }
+    };
     activateUser = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
         try {
             const { id } = req.params;

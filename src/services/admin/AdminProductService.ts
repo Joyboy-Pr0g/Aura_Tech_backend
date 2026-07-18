@@ -12,6 +12,7 @@ import { deleteFromCloudinary } from '../../config/cloudinary';
 import { AppDataSource } from '../../config/database';
 import { ProductService } from '../product/ProductService';
 import { ParsedProductUploadFile, VariantInput } from '../../utils/productUploadFiles';
+import { logAdminAction } from '../../utils/logAdminAction';
 
 export interface AdminCreateProductInput {
   title: string;
@@ -68,11 +69,27 @@ export class AdminProductService {
   }
 
   async createProduct(data: AdminCreateProductInput): Promise<Product> {
-    return this.productService.create(data);
+    const product = await this.productService.create(data);
+    void logAdminAction({
+      admin_id: data.created_by_id,
+      action: 'create',
+      entity_type: 'product',
+      entity_id: product.id,
+      changes_json: { title: product.title },
+    });
+    return product;
   }
 
   async updateProduct(id: string, data: AdminUpdateProductInput, adminId: string): Promise<Product> {
-    return this.productService.update(id, data, adminId);
+    const product = await this.productService.update(id, data, adminId);
+    void logAdminAction({
+      admin_id: adminId,
+      action: 'update',
+      entity_type: 'product',
+      entity_id: id,
+      changes_json: data as Record<string, unknown>,
+    });
+    return product;
   }
 
   async addStock(
@@ -85,23 +102,25 @@ export class AdminProductService {
     return this.productService.addStock(productId, quantity, adminId, variantId, notes);
   }
 
-  async softDeleteProduct(id: string): Promise<void> {
+  async softDeleteProduct(id: string, adminId: string): Promise<void> {
     const product = await this.ensureExists(id);
     if (product.deleted_at) throw new AppError(400, 'Product is already soft deleted');
     if (product.reserved_quantity > 0) {
       throw new AppError(400, 'Product has reserved stock and cannot be deleted');
     }
     await this.productRepo.softDelete(id);
+    void logAdminAction({ admin_id: adminId, action: 'soft_delete', entity_type: 'product', entity_id: id });
   }
 
-  async restoreProduct(id: string): Promise<void> {
+  async restoreProduct(id: string, adminId: string): Promise<void> {
     const product = await this.productRepo.findByIdAdmin(id);
     if (!product) throw new AppError(404, 'Product not found');
     if (!product.deleted_at) throw new AppError(400, 'Product is not soft deleted');
     await this.productRepo.restore(id);
+    void logAdminAction({ admin_id: adminId, action: 'restore', entity_type: 'product', entity_id: id });
   }
 
-  async deleteProduct(id: string): Promise<void> {
+  async deleteProduct(id: string, adminId: string): Promise<void> {
     const product = await this.productRepo.findByIdAdmin(id);
     if (!product) throw new AppError(404, 'Product not found');
 
@@ -132,6 +151,7 @@ export class AdminProductService {
     }
 
     await this.productRepo.delete(id);
+    void logAdminAction({ admin_id: adminId, action: 'delete', entity_type: 'product', entity_id: id });
   }
 
   async setPrimaryImage(productId: string, imageId: string, adminId: string): Promise<Product> {

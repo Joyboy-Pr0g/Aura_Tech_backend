@@ -1,9 +1,10 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index,
+  ManyToOne, OneToMany, JoinColumn, CreateDateColumn, UpdateDateColumn, Index,
 } from 'typeorm';
 import { Product } from './Product';
 import { User } from './User';
+import { QuestionAnswer } from './QuestionAnswer';
 
 @Entity('product_questions')
 export class ProductQuestion {
@@ -14,7 +15,7 @@ export class ProductQuestion {
   @Index()
   product_id: string;
 
-  @ManyToOne(() => Product, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Product, (product) => product.questions, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'product_id' })
   product: Product;
 
@@ -34,6 +35,9 @@ export class ProductQuestion {
 
   @Column({ type: 'boolean', default: true, name: 'is_published' })
   is_published: boolean;
+
+  @OneToMany(() => QuestionAnswer, (answer) => answer.question)
+  answers: QuestionAnswer[];
 
   @CreateDateColumn({ name: 'created_at' })
   @Index()

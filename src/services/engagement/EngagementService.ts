@@ -14,6 +14,8 @@ import {
   decodeCreatedAtIdCursor,
   paginateByCursor,
 } from '../../utils/cursorPagination';
+import { Order } from '../../models/Order';
+import { moderateCombinedText } from '../moderation/ArabicModerationService';
 
 @injectable()
 export class EngagementService {
@@ -25,6 +27,7 @@ export class EngagementService {
   private productRepo = () => AppDataSource.getRepository(Product);
   private orderItemRepo = () => AppDataSource.getRepository(OrderItem);
   private historyRepo = () => AppDataSource.getRepository(OrderStatusHistory);
+  private orderRepo = () => AppDataSource.getRepository(Order);
 
   async getWishlist(customerId: string) {
     const items = await this.wishlistRepo().find({
@@ -119,6 +122,8 @@ export class EngagementService {
     });
     if (existing) throw new AppError(409, 'You already reviewed this product');
 
+    const moderation = moderateCombinedText(data.title, data.content);
+
     const rating = await this.ratingRepo().save(
       this.ratingRepo().create({
         product_id: data.product_id,
@@ -136,7 +141,8 @@ export class EngagementService {
         rating_id: rating.id,
         title: data.title,
         content: data.content,
-        moderation_status: 'approved',
+        moderation_status: moderation.requiresReview ? 'pending' : 'approved',
+        moderation_notes: moderation.requiresReview ? 'Flagged by profanity filter' : null,
         is_verified_purchase: true,
       }),
     );
@@ -184,18 +190,23 @@ export class EngagementService {
     const product = await this.productRepo().findOne({ where: { id: productId } });
     if (!product) throw new AppError(404, 'Product not found');
 
+    const moderation = moderateCombinedText(question);
+
     return this.questionRepo().save(
       this.questionRepo().create({
         product_id: productId,
         customer_id: customerId,
         question,
+        is_published: !moderation.requiresReview,
       }),
     );
   }
 
-  async getOrderStatusHistory(orderId: string) {
+  async getOrderStatusHistory(orderNumber: string) {
+    const order = await this.orderRepo().findOne({ where: { order_number: orderNumber } });
+    if (!order) throw new AppError(404, 'Order not found');
     return this.historyRepo().find({
-      where: { order_id: orderId },
+      where: { order_id: order.id },
       order: { created_at: 'ASC' },
     });
   }

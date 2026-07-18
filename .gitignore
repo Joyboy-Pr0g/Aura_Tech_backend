@@ -1,5 +1,8 @@
 node_modules/
 dist/
 .env
+secrets/
+**/firebase-service-account*.json
+**/*firebase-adminsdk*.json
 *.js.map
 *.d.ts

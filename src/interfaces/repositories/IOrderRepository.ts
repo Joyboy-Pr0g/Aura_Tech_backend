@@ -1,4 +1,5 @@
 import { Order, OrderStatus } from '../../models/Order';
+import { OrderStatusHistory } from '../../models/OrderStatusHistory';
 import { DecodedCursor, CursorListResult } from '../../utils/cursorPagination';
 import { EntityManager } from 'typeorm';
 
@@ -20,21 +21,24 @@ export interface CreateOrderDto {
   shipping_cost: number;
   total: number;
   notes: string | null;
+  payment_type?: 'bank_transfer' | 'pay_on_delivery';
+  initial_status?: OrderStatus;
 }
 
 export interface OrderFilters {
   status?: OrderStatus;
+  search?: string;
   limit?: number;
   cursor?: DecodedCursor | null;
 }
 
 export interface IOrderRepository {
   findById(id: string): Promise<Order | null>;
+  findByCustomerIdAndOrderNumber(customerId: string, orderNumber: string): Promise<Order | null>;
   findByOrderNumber(orderNumber: string): Promise<Order | null>;
   findByCustomerId(
     customerId: string,
-    limit: number,
-    cursor: DecodedCursor | null,
+    filters: OrderFilters,
   ): Promise<CursorListResult<Order>>;
   findAll(filters: OrderFilters): Promise<CursorListResult<Order>>;
   create(dto: CreateOrderDto, manager?: EntityManager): Promise<Order>;
@@ -47,5 +51,6 @@ export interface IOrderRepository {
     reason: string | null,
     manager?: EntityManager,
   ): Promise<void>;
+  findStatusHistory(orderId: string): Promise<OrderStatusHistory[]>;
   getTotalOrderCount(): Promise<number>;
 }

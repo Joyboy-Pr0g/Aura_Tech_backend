@@ -17,7 +17,9 @@ export const checkoutSchema = Joi.object({
   billing_address_id: Joi.string().uuid().required(),
   shipping_fee_id: Joi.string().uuid().required(),
   notes: Joi.string().max(500).optional(),
-});
+  payment_type: Joi.string().valid('bank_transfer', 'pay_on_delivery').default('bank_transfer'),
+  coupon_code: Joi.string().trim().max(50).optional().allow(null, ''),
+}).unknown(false);
 
 export const submitPaymentSchema = Joi.object({
   payment_method_id: Joi.string().uuid().required(),
@@ -35,19 +37,36 @@ export const rejectPaymentSchema = Joi.object({
 });
 
 export const orderFiltersSchema = Joi.object({
-  status: Joi.string().valid('payment_confirmed', 'processing', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'refunded').optional(),
+  status: Joi.string()
+    .valid(
+      'pending_payment',
+      'payment_confirmed',
+      'processing',
+      'ready_to_ship',
+      'shipped',
+      'delivered',
+      'cancelled',
+      'refunded',
+    )
+    .optional(),
+  search: Joi.string().allow(null, '').max(100).optional(),
   cursor: Joi.string().allow(null, '').optional(),
-  limit: Joi.number().default(DEFAULT_LIMIT).optional(),
+  limit: Joi.number().integer().min(1).max(100).default(DEFAULT_LIMIT).optional(),
 }).unknown(false);
 
 export const paymentFiltersQuerySchema = Joi.object({
-  order_id: Joi.string().uuid().optional(),
+  search: Joi.string().allow(null, '').max(100).optional(),
   payment_method_id: Joi.string().uuid().optional(),
-  status: Joi.string().valid('pending', 'approved', 'rejected', 'refunded').optional(),
+  status: Joi.string().valid('pending', 'approved', 'rejected', 'refunded', 'manual_approved').optional(),
   min_amount: Joi.number().min(0).precision(2).optional(),
   max_amount: Joi.number().min(0).precision(2).optional(),
   cursor: Joi.string().allow(null, '').optional(),
   limit: Joi.number().integer().min(1).max(100).default(DEFAULT_LIMIT).optional(),
+}).unknown(false);
+
+export const createManualPaymentSchema = Joi.object({
+  order_number: Joi.string().trim().min(3).max(50).required(),
+  amount: Joi.number().positive().precision(2).required(),
 }).unknown(false);
 
 export const addressSchema = Joi.object({
