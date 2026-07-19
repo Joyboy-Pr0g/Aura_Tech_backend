@@ -74,6 +74,9 @@ services:
       REDIS_HOST: redis
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-auratech_db}
       REDIS_URL: redis://redis:6379
+      FIREBASE_SERVICE_ACCOUNT_PATH: /app/secrets/firebase-service-account.json
+    volumes:
+      - ./src/config/auratech-680a5-firebase-adminsdk-fbsvc-c49c5959fa.json:/app/secrets/firebase-service-account.json:ro
     ports:
       # Host:Container — only backend exposed (Cloudflare → server:3000 → container:5000)
       - '3000:5000'

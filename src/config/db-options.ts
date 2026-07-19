@@ -13,7 +13,9 @@ export function buildPostgresDataSourceOptions({
 }: PostgresPathOptions): DataSourceOptions {
   const poolSize = parseInt(process.env.DB_POOL_SIZE || '10', 10);
   const ssl =
-    process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false;
+  process.env.DB_SSL === 'true'
+    ? { rejectUnauthorized: false }
+    : false;
 
   const databaseUrl = process.env.DATABASE_URL?.trim();
   if (databaseUrl) {
