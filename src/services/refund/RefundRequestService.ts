@@ -9,6 +9,7 @@ import { OrderStatusHistory } from '../../models/OrderStatusHistory';
 import { uploadToCloudinary } from '../../config/cloudinary';
 import { logAdminAction } from '../../utils/logAdminAction';
 import { NotificationService } from '../notification/NotificationService';
+import { notificationMessages } from '../../i18n/notification-messages';
 
 const REFUND_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -76,10 +77,11 @@ export class RefundRequestService {
       status: 'pending',
     });
 
+    const staffRefund = notificationMessages.staffRefundRequest(order.order_number);
     void this.notificationService.notifyStaff({
-      type: 'staff_refund_request',
-      title: 'طلب استرداد جديد',
-      message: `قدّم العميل طلب استرداد للطلب ${order.order_number}. راجع طلبات الاسترداد في لوحة التحكم.`,
+      type: staffRefund.type,
+      title: staffRefund.title,
+      message: staffRefund.message,
       relatedOrderId: order.id,
     });
 
@@ -109,11 +111,13 @@ export class RefundRequestService {
       rejection_reason: null,
     });
 
+    const orderNumber = request.order?.order_number ?? '';
+    const copy = notificationMessages.refundApproved(orderNumber);
     void this.notificationService.notifyCustomer({
       customerId: request.customer_id,
-      type: 'payment_approved',
-      title: 'Refund approved',
-      message: `Your refund request for order ${request.order?.order_number ?? ''} was approved.`,
+      type: copy.type,
+      title: copy.title,
+      message: copy.message,
       relatedOrderId: request.order_id,
     });
 
@@ -141,11 +145,13 @@ export class RefundRequestService {
       rejection_reason: rejectionReason,
     });
 
+    const orderNumber = request.order?.order_number ?? '';
+    const copy = notificationMessages.refundRejected(orderNumber);
     void this.notificationService.notifyCustomer({
       customerId: request.customer_id,
-      type: 'payment_rejected',
-      title: 'Refund rejected',
-      message: `Your refund request for order ${request.order?.order_number ?? ''} was rejected.`,
+      type: copy.type,
+      title: copy.title,
+      message: copy.message,
       relatedOrderId: request.order_id,
     });
 

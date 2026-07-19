@@ -14,7 +14,7 @@ import { CouponService } from '../coupon/CouponService';
 import { ICouponRepository } from '../../interfaces/repositories/ICouponRepository';
 import { CouponLineItem } from '../../types/coupon';
 import { NotificationService } from '../notification/NotificationService';
-import { NotificationType } from '../../models/Notification';
+import { notificationMessages } from '../../i18n/notification-messages';
 import { IInventoryRepository } from '../../interfaces/repositories/IInventoryRepository';
 import { logAdminAction } from '../../utils/logAdminAction';
 
@@ -190,18 +190,20 @@ export class OrderService {
       });
     }
 
+    const orderConfirmation = notificationMessages.orderConfirmation(order.savedOrder.order_number);
     void this.notificationService.notifyCustomer({
       customerId,
-      type: 'order_confirmation',
-      title: 'تم تأكيد الطلب',
-      message: `تم تقديم طلبك ${order.savedOrder.order_number} بنجاح.`,
+      type: orderConfirmation.type,
+      title: orderConfirmation.title,
+      message: orderConfirmation.message,
       relatedOrderId: order.savedOrder.id,
     });
 
+    const staffNewOrder = notificationMessages.staffNewOrder(order.savedOrder.order_number);
     void this.notificationService.notifyStaff({
-      type: 'staff_new_order',
-      title: 'طلب جديد',
-      message: `تم تقديم الطلب ${order.savedOrder.order_number} ويحتاج إلى مراجعة.`,
+      type: staffNewOrder.type,
+      title: staffNewOrder.title,
+      message: staffNewOrder.message,
       relatedOrderId: order.savedOrder.id,
     });
 
@@ -285,47 +287,7 @@ export class OrderService {
     newStatus: OrderStatus,
     reason: string | null,
   ): void {
-    const statusMessages: Partial<Record<OrderStatus, { type: NotificationType; title: string; message: string }>> = {
-      payment_confirmed: {
-        type: 'payment_approved',
-        title: 'Payment confirmed',
-        message: `Payment for order ${order.order_number} has been confirmed.`,
-      },
-      processing: {
-        type: 'order_status_updated',
-        title: 'Order processing',
-        message: `Order ${order.order_number} is now being processed.`,
-      },
-      ready_to_ship: {
-        type: 'shipment_ready',
-        title: 'Order ready to ship',
-        message: `Order ${order.order_number} is ready to ship.`,
-      },
-      shipped: {
-        type: 'shipment_ready',
-        title: 'Order shipped',
-        message: `Order ${order.order_number} has been shipped.`,
-      },
-      delivered: {
-        type: 'delivery_confirmation',
-        title: 'Order delivered',
-        message: `Order ${order.order_number} has been delivered.`,
-      },
-      cancelled: {
-        type: 'order_status_updated',
-        title: 'Order cancelled',
-        message: reason
-          ? `Order ${order.order_number} was cancelled: ${reason}`
-          : `Order ${order.order_number} was cancelled.`,
-      },
-      refunded: {
-        type: 'order_status_updated',
-        title: 'Order refunded',
-        message: `Order ${order.order_number} has been refunded.`,
-      },
-    };
-
-    const payload = statusMessages[newStatus];
+    const payload = notificationMessages.orderStatusChange(order.order_number, newStatus, reason);
     if (!payload || previous === newStatus) return;
 
     void this.notificationService.notifyCustomer({

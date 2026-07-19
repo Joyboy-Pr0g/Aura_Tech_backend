@@ -12,6 +12,7 @@ import { Order } from '../../models/Order';
 import { decodeCreatedAtIdCursor } from '../../utils/cursorPagination';
 import { EntityManager } from 'typeorm';
 import { NotificationService } from '../notification/NotificationService';
+import { notificationMessages } from '../../i18n/notification-messages';
 import { logAdminAction } from '../../utils/logAdminAction';
 
 @injectable()
@@ -65,10 +66,11 @@ export class PaymentService {
     payment.receipt_document_url = uploaded.url;
     payment.receipt_public_id = uploaded.public_id;
 
+    const staffPayment = notificationMessages.staffPaymentSubmitted(order.order_number);
     void this.notificationService.notifyStaff({
-      type: 'staff_payment_submitted',
-      title: 'دفع جديد',
-      message: `أرسل العميل إيصال دفع للطلب ${order.order_number}. راجع المدفوعات في لوحة التحكم.`,
+      type: staffPayment.type,
+      title: staffPayment.title,
+      message: staffPayment.message,
       relatedOrderId: order.id,
     });
 
@@ -89,11 +91,12 @@ export class PaymentService {
 
     const order = await this.orderRepo.findById(payment.order_id);
     if (order) {
+      const copy = notificationMessages.paymentApproved(order.order_number);
       void this.notificationService.notifyCustomer({
         customerId: order.customer_id,
-        type: 'payment_approved',
-        title: 'Payment approved',
-        message: `Payment for order ${order.order_number} has been approved.`,
+        type: copy.type,
+        title: copy.title,
+        message: copy.message,
         relatedOrderId: order.id,
       });
     }
@@ -147,11 +150,12 @@ export class PaymentService {
       await this.fulfillOrderStock(fullOrder, manager);
     });
 
+    const copy = notificationMessages.paymentRecorded(fullOrder.order_number);
     void this.notificationService.notifyCustomer({
       customerId: fullOrder.customer_id,
-      type: 'payment_approved',
-      title: 'Payment recorded',
-      message: `Payment for order ${fullOrder.order_number} has been recorded.`,
+      type: copy.type,
+      title: copy.title,
+      message: copy.message,
       relatedOrderId: fullOrder.id,
     });
 
@@ -221,11 +225,12 @@ export class PaymentService {
 
     const order = await this.orderRepo.findById(payment.order_id);
     if (order) {
+      const copy = notificationMessages.paymentRejected(order.order_number, reason);
       void this.notificationService.notifyCustomer({
         customerId: order.customer_id,
-        type: 'payment_rejected',
-        title: 'Payment rejected',
-        message: `Payment for order ${order.order_number} was rejected: ${reason}`,
+        type: copy.type,
+        title: copy.title,
+        message: copy.message,
         relatedOrderId: order.id,
       });
     }

@@ -8,6 +8,7 @@ import { Product } from '../../models/Product';
 import { ProductVariant } from '../../models/ProductVariant';
 import { User } from '../../models/User';
 import { isFirebaseConfigured, sendFirebaseMulticast } from '../../config/firebase';
+import { notificationMessages } from '../../i18n/notification-messages';
 import { Role } from '../../types/rbac';
 
 @injectable()
@@ -202,11 +203,13 @@ export class NotificationService {
 
       for (const reminder of reminders) {
         const product = reminder.product;
+        const productTitle = product?.title ?? 'المنتج';
+        const copy = notificationMessages.productBackInStock(productTitle);
         await this.notifyCustomer({
           customerId: reminder.customer_id,
-          type: 'product_available',
-          title: 'Back in stock',
-          message: `${product?.title ?? 'A product'} is back in stock.`,
+          type: copy.type,
+          title: copy.title,
+          message: copy.message,
           relatedProductId: row.product_id,
         });
         await this.notificationRepo.markReminderNotified(reminder.id);
