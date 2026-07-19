@@ -4,11 +4,18 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { type RateLimitExceededEventHandler } from 'express-rate-limit';
 import routes from './routes';
 import { errorHandler } from './middleware/errorHandler';
+import { APIResponse } from './core/responses/api-response';
 
 const app = express();
+
+app.set('trust proxy', 1);
+
+const jsonRateLimitHandler: RateLimitExceededEventHandler = (_req, res) => {
+  res.status(429).json(APIResponse.error('Too many requests, please try again later.'));
+};
 
 // ─── Security Headers ────────────────────────────────────────────────────────
 app.use(helmet());
@@ -26,7 +33,8 @@ app.use(
     max: 300,
     standardHeaders: true,
     legacyHeaders: false,
-    message: 'Too many requests, please try again later.',
+    handler: jsonRateLimitHandler,
+    skip: (req) => req.originalUrl.startsWith('/api/visits'),
   }),
 );
 
@@ -36,13 +44,41 @@ app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 30,
-    message: 'Too many auth requests, please try again in 15 minutes.',
+    handler: (_req, res) => {
+      res.status(429).json(APIResponse.error('Too many auth requests, please try again in 15 minutes.'));
+    },
   }),
 );
 
 // ─── Body Parsing ────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Visits are proxied from the Next.js storefront (shared egress IP), so key by visitor id.
+app.use(
+  '/api/visits',
+  rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: jsonRateLimitHandler,
+    keyGenerator: (req) => {
+      const visitorId = req.body?.visitor_id;
+      if (typeof visitorId === 'string' && visitorId.trim()) {
+        return `visit:${visitorId.trim()}`;
+      }
+
+      const forwarded = req.headers['x-forwarded-for'];
+      const clientIp = typeof forwarded === 'string'
+        ? forwarded.split(',')[0]?.trim()
+        : req.ip;
+
+      return clientIp ?? 'unknown';
+    },
+  }),
+);
+
 app.use(compression() as any);
 
 // ─── Logging ─────────────────────────────────────────────────────────────────
