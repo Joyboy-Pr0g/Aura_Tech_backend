@@ -11,10 +11,7 @@ import { CursorListResult, decodeCreatedAtIdCursor } from '../../utils/cursorPag
 import { deleteFromCloudinary, uploadToCloudinary } from '../../config/cloudinary';
 import { CategoryDto } from '../../mappers/categories.mapper';
 import { logAdminAction } from '../../utils/logAdminAction';
-
-function toSlug(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
+import { toSlug } from '../../utils/slug';
 
 export interface AdminCreateCategoryInput {
   name: string;
@@ -55,6 +52,9 @@ export class AdminCategoryService {
 
   async createCategory(data: AdminCreateCategoryInput, adminId: string): Promise<Category> {
     const slug = toSlug(data.name);
+    if (!slug) {
+      throw new AppError(400, 'Category name must contain at least one letter or number');
+    }
     if (await this.categoryRepo.existsBySlug(slug)) {
       throw new AppError(409, `Category "${data.name}" already exists`);
     }
@@ -108,12 +108,23 @@ export class AdminCategoryService {
 
     const updates: UpdateCategoryDto = {};
 
-    if (data.name && data.name !== category.name) {
-      const slug = toSlug(data.name);
-      if (await this.categoryRepo.existsBySlug(slug, id)) {
-        throw new AppError(409, `Category name "${data.name}" already exists`);
-      }
+    if (data.name !== undefined) {
       updates.name = data.name;
+    }
+
+    const nameForSlug = updates.name ?? category.name;
+    const shouldRegenerateSlug =
+      !category.slug?.trim() ||
+      (data.name !== undefined && data.name !== category.name);
+
+    if (shouldRegenerateSlug) {
+      const slug = toSlug(nameForSlug);
+      if (!slug) {
+        throw new AppError(400, 'Category name must contain at least one letter or number');
+      }
+      if (await this.categoryRepo.existsBySlug(slug, id)) {
+        throw new AppError(409, `Category name "${nameForSlug}" already exists`);
+      }
       updates.slug = slug;
     }
 

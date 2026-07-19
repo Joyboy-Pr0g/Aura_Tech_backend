@@ -16,10 +16,7 @@ import {
 import { ParsedProductUploadFile, VariantImageRecord, VariantInput } from '../../utils/productUploadFiles';
 import { SearchService } from '../search/SearchService';
 import { TrendingService } from '../trending/TrendingService';
-
-function toSlug(title: string): string {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
+import { toSlug } from '../../utils/slug';
 
 function normalizeSubCategoryId(value?: string | null): string | null {
   if (!value || String(value).trim() === '') return null;
@@ -27,7 +24,7 @@ function normalizeSubCategoryId(value?: string | null): string | null {
 }
 
 function variantSkuFolder(sku: string): string {
-  return sku.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  return toSlug(sku);
 }
 
 @injectable()

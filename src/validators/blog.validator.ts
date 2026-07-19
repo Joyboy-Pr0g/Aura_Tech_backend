@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { toSlug } from '../utils/slug';
 
 export const createBlogSchema = Joi.object({
   title: Joi.string().min(3).max(200).required(),
@@ -23,5 +24,5 @@ export const updateBlogSchema = Joi.object({
 }).unknown(false);
 
 export function blogToSlug(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  return toSlug(value);
 }

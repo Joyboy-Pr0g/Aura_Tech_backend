@@ -5,10 +5,6 @@ import { AppError } from '../../core/errors/AppError';
 import { Category } from '../../models/Category';
 import { CategoryDto } from '../../mappers/categories.mapper';
 
-function toSlug(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
-
 @injectable()
 export class CategoryService {
   constructor(
