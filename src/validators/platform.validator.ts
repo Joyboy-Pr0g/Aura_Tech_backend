@@ -94,6 +94,6 @@ export const expenseHistorySchema = Joi.object({
 }).unknown(false);
 
 export const latestActionLogsSchema = Joi.object({
-  entity_type: Joi.string().valid('product', 'category', 'order', 'payment', 'coupon', 'blog').required(),
+  entity_type: Joi.string().valid('product', 'category', 'order', 'payment', 'coupon', 'blog', 'refund_request').required(),
   ids: Joi.string().required(),
 }).unknown(false);

@@ -21,6 +21,9 @@ export const updateWebsiteSettingsSchema = Joi.object({
   default_locale: Joi.string().allow('', null).max(10).optional(),
   theme_color: Joi.string().allow('', null).max(20).optional(),
   robots: Joi.string().allow('', null).max(100).optional(),
+  sar_to_yer: Joi.alternatives()
+    .try(Joi.number().precision(2).positive().max(99999999.99), Joi.string().pattern(/^\d+(\.\d{1,2})?$/), Joi.valid('', null))
+    .optional(),
   remove_header_logo: Joi.boolean().truthy('true').falsy('false').optional(),
   remove_footer_logo: Joi.boolean().truthy('true').falsy('false').optional(),
   remove_favicon: Joi.boolean().truthy('true').falsy('false').optional(),

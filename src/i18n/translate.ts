@@ -179,6 +179,7 @@ const EXACT: Record<string, string> = {
   'Verification code expired or not found. Please request a new one.': 'انتهت صلاحية رمز التحقق أو غير موجود. اطلب رمزاً جديداً.',
   'Verification service temporarily unavailable': 'خدمة التحقق غير متاحة مؤقتاً',
   'Your account has been blocked. Contact support.': 'تم حظر حسابك. تواصل مع الدعم.',
+  'Can not use this coupon again': 'لا يمكن استخدام هذا الكوبون مرة أخرى',
   'Blog not found': 'المقال غير موجود',
   'Cart not found': 'السلة غير موجودة',
   'Item not found in your cart': 'العنصر غير موجود في سلتك',

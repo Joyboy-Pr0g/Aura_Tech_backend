@@ -15,6 +15,7 @@ import { User } from '../../models/User';
 import { Role } from '../../types/rbac';
 import { hashPassword } from '../../utils/password';
 import { sendPasswordResetEmail } from '../mail/emailService';
+import { AuthService } from '../auth/AuthService';
 import { Order } from '../../models/Order';
 import { ProductReview } from '../../models/ProductReview';
 import { ProductQuestion } from '../../models/ProductQuestion';
@@ -26,6 +27,7 @@ export class AdminUserService {
         @inject(REPOSITORY_TOKENS.IAuthRepository) private authRepo: IAuthRepository,
         @inject(REPOSITORY_TOKENS.IOrderRepository) private orderRepo: IOrderRepository,
         @inject(REPOSITORY_TOKENS.IEngagementRepository) private engagementRepo: IEngagementRepository,
+        @inject(AuthService) private authService: AuthService,
     ) { }
 
     /** Get users
@@ -72,17 +74,23 @@ export class AdminUserService {
      * @returns User
      */
     async createUser(data: AdminCreateUserDto): Promise<SafeUser> {
-        const existingUser = await this.authRepo.findByEmail(data.email);
+        const normalizedEmail = data.email.toLowerCase().trim();
+        await this.authService.assertRegistrationEmailVerified(normalizedEmail);
+
+        const existingUser = await this.authRepo.findByEmail(normalizedEmail);
         if (existingUser) throw new AppError(400, 'User with this email already exists');
         const existingUserByPhone = await this.authRepo.existsByPhone(data.phone);
         if (existingUserByPhone) throw new AppError(400, 'User with this phone already exists');
         const user = await this.authRepo.create({
             full_name: data.full_name,
-            email: data.email,
+            email: normalizedEmail,
             password_hash: await hashPassword(data.password),
             phone: data.phone ?? null,
             role: data.role ?? Role.CUSTOMER,
         });
+
+        await this.authService.consumeRegistrationEmailVerification(normalizedEmail);
+
         return this.sanitize(user);
     }
 

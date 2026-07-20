@@ -190,6 +190,17 @@ export class AuthService {
     }
   }
 
+  async assertRegistrationEmailVerified(email: string): Promise<void> {
+    const normalizedEmail = email.toLowerCase().trim();
+    if (!(await this.isRegistrationEmailVerified(normalizedEmail))) {
+      throw new AppError(400, 'Email must be verified before registration');
+    }
+  }
+
+  async consumeRegistrationEmailVerification(email: string): Promise<void> {
+    await this.clearRegistrationVerified(email);
+  }
+
   async register(data: {
     full_name: string;
     email: string;

@@ -7,9 +7,11 @@ import {
   Index,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { Category } from './Category';
 import { Product } from './Product';
+import { CouponUsage } from './CouponUsage';
 
 @Entity('coupons')
 export class Coupon {
@@ -69,6 +71,9 @@ export class Coupon {
   @ManyToOne(() => Product, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'product_id' })
   product: Product | null;
+
+  @OneToMany(() => CouponUsage, (usage) => usage.coupon)
+  usages: CouponUsage[];
 
   @CreateDateColumn({ name: 'created_at' })
   created_at: Date;

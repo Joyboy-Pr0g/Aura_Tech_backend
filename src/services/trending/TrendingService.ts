@@ -10,7 +10,11 @@ export class TrendingService {
   ) {}
 
   async logProductView(productId: string, customerId: string | null): Promise<void> {
-    await this.trendingRepo.logProductView(productId, customerId);
+    try {
+      await this.trendingRepo.logProductView(productId, customerId);
+    } catch (err) {
+      console.warn('[trending] failed to log product view', err instanceof Error ? err.message : err);
+    }
   }
 
   async calculateTrending(): Promise<void> {

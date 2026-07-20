@@ -2,6 +2,7 @@ import { injectable } from 'tsyringe';
 import { AppDataSource } from '../../config/database';
 import { SearchQuery } from '../../models/SearchQuery';
 import { ISearchRepository } from '../../interfaces/repositories/ISearchRepository';
+import { resolveExistingCustomerId } from '../../utils/resolveExistingCustomerId';
 
 @injectable()
 export class SearchRepository implements ISearchRepository {
@@ -10,9 +11,10 @@ export class SearchRepository implements ISearchRepository {
   async saveQuery(customerId: string | null, query: string, resultsCount: number | null): Promise<void> {
     const trimmed = query.trim();
     if (trimmed.length < 2) return;
+    const resolvedCustomerId = await resolveExistingCustomerId(customerId);
     await this.repo.save(
       this.repo.create({
-        customer_id: customerId,
+        customer_id: resolvedCustomerId,
         query: trimmed,
         results_count: resultsCount,
       }),

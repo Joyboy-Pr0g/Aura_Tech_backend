@@ -57,7 +57,7 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-async function buildAuraEmailLayout({
+export async function buildAuraEmailLayout({
   title,
   greeting,
   bodyHtml,
@@ -150,6 +150,32 @@ async function buildAuraEmailLayout({
   </table>
 </body>
 </html>`;
+}
+
+export async function sendNotificationEmail(
+  email: string,
+  recipientName: string,
+  title: string,
+  message: string,
+): Promise<boolean> {
+  const greetingName = recipientName?.trim() || 'عميلنا الكريم';
+  const html = await buildAuraEmailLayout({
+    title,
+    greeting: `مرحباً ${greetingName}،`,
+    bodyHtml: `
+          <p style="margin:0 0 16px;">${escapeHtml(message)}</p>
+          <p style="margin:0;">يمكنك متابعة تفاصيل حسابك والطلبات من لوحة التحكم داخل الموقع.</p>
+        `,
+    footerNote:
+      'هذه رسالة آلية من AuraTech بخصوص نشاط حسابك. إذا لم تكن تتوقع هذا الإشعار، يمكنك تجاهله بأمان.',
+  });
+
+  return sendEmail({
+    to: email,
+    subject: `${title} — ${BRAND_NAME}`,
+    html,
+    text: `مرحباً ${greetingName}،\n\n${title}\n\n${message}\n\n— ${BRAND_NAME}`,
+  });
 }
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {

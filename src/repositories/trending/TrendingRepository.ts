@@ -4,6 +4,7 @@ import { ProductView } from '../../models/ProductView';
 import { TrendingProduct } from '../../models/TrendingProduct';
 import { Product } from '../../models/Product';
 import { ITrendingRepository } from '../../interfaces/repositories/ITrendingRepository';
+import { resolveExistingCustomerId } from '../../utils/resolveExistingCustomerId';
 
 @injectable()
 export class TrendingRepository implements ITrendingRepository {
@@ -12,10 +13,11 @@ export class TrendingRepository implements ITrendingRepository {
   private productRepo = AppDataSource.getRepository(Product);
 
   async logProductView(productId: string, customerId: string | null): Promise<void> {
+    const resolvedCustomerId = await resolveExistingCustomerId(customerId);
     await this.viewRepo.save(
       this.viewRepo.create({
         product_id: productId,
-        customer_id: customerId,
+        customer_id: resolvedCustomerId,
         viewed_at: new Date(),
       }),
     );

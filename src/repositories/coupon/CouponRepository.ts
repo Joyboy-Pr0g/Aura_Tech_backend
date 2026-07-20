@@ -11,7 +11,7 @@ export class CouponRepository implements ICouponRepository {
   private repo = AppDataSource.getRepository(Coupon);
 
   async findByCode(code: string): Promise<Coupon | null> {
-    return this.repo.findOne({ where: { code: code.toUpperCase().trim() } });
+    return this.repo.findOne({ where: { code: code.toUpperCase().trim() }, relations: ['usages'] });
   }
 
   async findById(id: string): Promise<Coupon | null> {

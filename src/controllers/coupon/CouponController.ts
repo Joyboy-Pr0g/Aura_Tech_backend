@@ -9,10 +9,12 @@ export class CouponController {
   constructor(@inject(CouponService) private couponService: CouponService) {}
 
   validate = async (req: Request, res: Response): Promise<void> => {
+    const customerId = req.user!.id;
     try {
       const data = await this.couponService.validateCoupon(
         req.validatedData.code,
         req.validatedData.subtotal,
+        customerId,
         req.validatedData.items ?? [],
       );
       res.json(APIResponse.success('Coupon valid', data));

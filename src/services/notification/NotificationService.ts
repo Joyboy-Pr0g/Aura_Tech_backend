@@ -2,7 +2,7 @@ import { injectable, inject } from 'tsyringe';
 import { REPOSITORY_TOKENS } from '../../di/repository.tokens';
 import { INotificationRepository } from '../../interfaces/repositories/INotificationRepository';
 import { Notification, NotificationType } from '../../models/Notification';
-import { sendEmail } from '../mail/emailService';
+import { sendNotificationEmail } from '../mail/emailService';
 import { AppDataSource } from '../../config/database';
 import { Product } from '../../models/Product';
 import { ProductVariant } from '../../models/ProductVariant';
@@ -65,15 +65,12 @@ export class NotificationService {
     if (!params.skipEmail && user?.email) {
       const emailLog = await this.notificationRepo.createLog(notification.id, 'email', 'pending');
       try {
-        const sent = await sendEmail({
-          to: user.email,
-          subject: params.title,
-          html: `<div style="font-family:sans-serif;color:#f5f5f5;background:#050507;padding:24px;">
-          <h2 style="color:#00D9FF;">${params.title}</h2>
-          <p style="color:rgba(255,255,255,0.7);">${params.message}</p>
-        </div>`,
-          text: params.message,
-        });
+        const sent = await sendNotificationEmail(
+          user.email,
+          user.full_name,
+          params.title,
+          params.message,
+        );
         await this.notificationRepo.updateLogStatus(emailLog.id, sent ? 'sent' : 'failed', sent ? undefined : 'Email send failed');
         if (sent) {
           await AppDataSource.getRepository(Notification).update(notification.id, { status: 'sent' });
@@ -157,12 +154,12 @@ export class NotificationService {
       });
       if (!user?.email) continue;
       try {
-        const sent = await sendEmail({
-          to: user.email,
-          subject: log.notification.title,
-          html: `<p>${log.notification.message}</p>`,
-          text: log.notification.message,
-        });
+        const sent = await sendNotificationEmail(
+          user.email,
+          user.full_name,
+          log.notification.title,
+          log.notification.message,
+        );
         await this.notificationRepo.updateLogStatus(log.id, sent ? 'sent' : 'failed');
       } catch (err) {
         await this.notificationRepo.updateLogStatus(

@@ -26,6 +26,7 @@ export interface UpdateWebsiteSettingsDto {
   default_locale?: string | null;
   theme_color?: string | null;
   robots?: string | null;
+  sar_to_yer?: number | null;
 }
 
 export interface IWebsiteSettingsRepository {

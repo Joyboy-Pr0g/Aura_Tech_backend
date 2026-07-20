@@ -6,7 +6,6 @@ import { AppError } from '../../core/errors/AppError';
 import { CouponLineItem } from '../../types/coupon';
 
 export interface ValidateCouponResult {
-  coupon: Coupon;
   discount_amount: number;
   code: string;
 }
@@ -20,13 +19,13 @@ export class CouponService {
   async validateCoupon(
     code: string,
     subtotal: number,
+    customerId: string,
     items: CouponLineItem[] = [],
   ): Promise<ValidateCouponResult> {
-    const coupon = await this.requireValidCouponAsync(code, subtotal, items);
+    const coupon = await this.requireValidCouponAsync(code, subtotal, customerId, items);
     const discountBase = this.getEligibleSubtotal(coupon, items, subtotal);
     const discountAmount = this.calculateDiscount(coupon, discountBase);
     return {
-      coupon,
       discount_amount: discountAmount,
       code: coupon.code,
     };
@@ -35,11 +34,12 @@ export class CouponService {
   async requireValidCouponAsync(
     code: string,
     subtotal: number,
+    customerId: string,
     items: CouponLineItem[] = [],
   ): Promise<Coupon> {
     const coupon = await this.couponRepo.findByCode(code);
     const discountBase = this.getEligibleSubtotal(coupon, items, subtotal);
-    return this.validateCouponEntity(coupon, discountBase, items);
+    return this.validateCouponEntity(coupon, discountBase, customerId, items);
   }
 
   getEligibleSubtotal(
@@ -121,6 +121,7 @@ export class CouponService {
   private validateCouponEntity(
     coupon: Coupon | null,
     subtotal: number,
+    customerId:string,
     items: CouponLineItem[],
   ): Coupon {
     if (!coupon) throw new AppError(404, 'Coupon not found');
@@ -130,6 +131,9 @@ export class CouponService {
     }
     if (coupon.max_uses != null && coupon.current_uses >= coupon.max_uses) {
       throw new AppError(400, 'Coupon usage limit reached');
+    }
+    if(customerId && coupon.usages && coupon.usages.some((usage) => usage.customer_id === customerId)) {
+      throw new AppError(400, 'Can not use this coupon again');
     }
     if (subtotal < Number(coupon.min_purchase_amount)) {
       throw new AppError(400, `Minimum purchase amount is ${coupon.min_purchase_amount}`);

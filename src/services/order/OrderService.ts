@@ -137,7 +137,7 @@ export class OrderService {
       let discountTotal = 0;
       let couponId: string | null = null;
       if (couponCode) {
-        const coupon = await this.couponService.requireValidCouponAsync(couponCode, subtotal, couponLineItems);
+        const coupon = await this.couponService.requireValidCouponAsync(couponCode, subtotal, customerId, couponLineItems);
         const discountBase = this.couponService.getEligibleSubtotal(coupon, couponLineItems, subtotal);
         discountTotal = this.couponService.calculateDiscount(coupon, discountBase);
         couponId = coupon.id;

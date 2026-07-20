@@ -86,6 +86,9 @@ export class WebsiteSettings {
   @Column({ type: 'varchar', length: 100, default: 'index, follow' })
   robots: string;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'sar_to_yer' })
+  sar_to_yer: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   created_at: Date;
 

@@ -23,6 +23,7 @@ export interface UpdateWebsiteSettingsInput {
   default_locale?: string | null;
   theme_color?: string | null;
   robots?: string | null;
+  sar_to_yer?: number | string | null;
   remove_header_logo?: boolean;
   remove_footer_logo?: boolean;
   remove_favicon?: boolean;
@@ -75,6 +76,15 @@ export class WebsiteSettingsService {
     if (data.default_locale !== undefined) patch.default_locale = toNullableString(data.default_locale) ?? 'en_US';
     if (data.theme_color !== undefined) patch.theme_color = toNullableString(data.theme_color) ?? '#00d9ff';
     if (data.robots !== undefined) patch.robots = toNullableString(data.robots) ?? 'index, follow';
+    if (data.sar_to_yer !== undefined) {
+      const raw = data.sar_to_yer;
+      if (raw === null || raw === '') {
+        patch.sar_to_yer = null;
+      } else {
+        const parsed = Number(raw);
+        patch.sar_to_yer = Number.isFinite(parsed) ? parsed : null;
+      }
+    }
 
     if (data.remove_header_logo) {
       if (current.header_logo_public_id) await deleteFromCloudinary(current.header_logo_public_id);
