@@ -8,6 +8,7 @@ import { User } from './User';
 import { PaymentMethod } from './PaymentMethod';
 
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'refunded' | 'manual_approved';
+export type AutoVerifyStatus = 'pending' | 'matched' | 'parse_failed' | 'match_failed';
 
 @Entity('payments')
 export class Payment {
@@ -66,6 +67,15 @@ export class Payment {
 
   @Column({ type: 'text', nullable: true, name: 'rejection_reason' })
   rejection_reason: string | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true, name: 'payer_account_number' })
+  payer_account_number: string | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true, name: 'expected_amount_yer' })
+  expected_amount_yer: number | null;
+
+  @Column({ type: 'varchar', length: 20, default: 'pending', name: 'auto_verify_status' })
+  auto_verify_status: AutoVerifyStatus;
 
   @Column({ type: 'timestamp', nullable: true, name: 'rejected_at' })
   rejected_at: Date | null;

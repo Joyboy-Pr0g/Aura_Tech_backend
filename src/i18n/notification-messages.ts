@@ -72,6 +72,14 @@ export const notificationMessages = {
     };
   },
 
+  autoVerifyFailed(orderNumber: string): NotificationCopy {
+    return {
+      type: 'payment_rejected',
+      title: 'تعذر التحقق التلقائي من الدفع',
+      message: `تعذر التحقق التلقائي من دفعتك للطلب ${orderNumber}، لكن طلبك مسجل وسيراجعه فريقنا خلال 24 ساعة.`,
+    };
+  },
+
   paymentRejected(orderNumber: string, reason: string): NotificationCopy {
     return {
       type: 'payment_rejected',

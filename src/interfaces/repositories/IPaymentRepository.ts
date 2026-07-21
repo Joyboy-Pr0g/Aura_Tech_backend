@@ -1,4 +1,4 @@
-import { Payment, PaymentStatus } from '../../models/Payment';
+import { Payment, PaymentStatus, AutoVerifyStatus } from '../../models/Payment';
 import { PaymentMethod } from '../../models/PaymentMethod';
 import { DecodedCursor, CursorListResult } from '../../utils/cursorPagination';
 
@@ -27,6 +27,14 @@ export interface IPaymentRepository {
   }): Promise<Payment>;
   attachReceipt(id: string, url: string, publicId: string): Promise<void>;
   updateStatus(id: string, status: PaymentStatus, adminId: string | null, reason: string | null): Promise<void>;
+  updateAutoVerifyFields(
+    id: string,
+    fields: {
+      payer_account_number?: string;
+      expected_amount_yer?: number;
+      auto_verify_status?: AutoVerifyStatus;
+    },
+  ): Promise<void>;
 
   findAllMethods(): Promise<PaymentMethod[]>;
   findMethodById(id: string): Promise<PaymentMethod | null>;

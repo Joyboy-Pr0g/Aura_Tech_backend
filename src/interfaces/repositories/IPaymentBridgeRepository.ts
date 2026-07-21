@@ -1,6 +1,6 @@
 import { PaymentDevice } from '../../models/PaymentDevice';
 import { PaymentProvider } from '../../models/PaymentProvider';
-import { PaymentSmsEvent } from '../../models/PaymentSmsEvent';
+import { PaymentSmsEvent, SmsParseMethod, SmsParseStatus } from '../../models/PaymentSmsEvent';
 
 export interface CreatePaymentDeviceDto {
   device_uuid: string;
@@ -49,4 +49,20 @@ export interface IPaymentBridgeRepository {
   deleteProvider(id: string): Promise<void>;
 
   createSmsEvent(data: CreatePaymentSmsEventDto): Promise<PaymentSmsEvent>;
+  findSmsEventById(id: string): Promise<PaymentSmsEvent | null>;
+  findRecentUnmatchedSmsEvents(since: Date): Promise<PaymentSmsEvent[]>;
+  updateSmsEventParsed(
+    id: string,
+    data: {
+      parsed_provider?: string;
+      parsed_amount?: number;
+      parsed_currency?: string;
+      parsed_account_number?: string;
+      parsed_balance?: number | null;
+      parsed_sender?: string | null;
+      parse_method?: SmsParseMethod;
+      parse_status?: SmsParseStatus;
+    },
+  ): Promise<void>;
+  updateSmsEventMatched(id: string, orderId: string): Promise<void>;
 }

@@ -12,7 +12,7 @@ export async function seedPaymentProviders(): Promise<void> {
   await repo.save([
     repo.create({
       name: 'ejaib',
-      aliases: ['JAIB', 'eJaib', 'EJAIB'],
+      aliases: ['JAIB', 'eJaib', 'EJAIB', 'جيب'],
       is_active: true,
     }),
     repo.create({

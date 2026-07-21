@@ -1,4 +1,4 @@
-import { injectable, inject } from 'tsyringe';
+import { injectable, inject, delay } from 'tsyringe';
 import { AppDataSource } from '../../config/database';
 import { Product } from '../../models/Product';
 import { ProductVariant } from '../../models/ProductVariant';
@@ -14,6 +14,8 @@ import { EntityManager } from 'typeorm';
 import { NotificationService } from '../notification/NotificationService';
 import { notificationMessages } from '../../i18n/notification-messages';
 import { logAdminAction } from '../../utils/logAdminAction';
+import { PaymentVerificationService } from '../paymentBridge/PaymentVerificationService';
+import { normalizeAccountNumber } from '../../utils/convertSarToYer';
 
 @injectable()
 export class PaymentService {
@@ -21,12 +23,15 @@ export class PaymentService {
     @inject(REPOSITORY_TOKENS.IPaymentRepository) private paymentRepo: IPaymentRepository,
     @inject(REPOSITORY_TOKENS.IOrderRepository) private orderRepo: IOrderRepository,
     @inject(NotificationService) private notificationService: NotificationService,
+    @inject(delay(() => PaymentVerificationService))
+    private verificationService: PaymentVerificationService,
   ) {}
 
   async submitPayment(
     customerId: string,
     orderId: string,
     paymentMethodId: string,
+    payerAccountNumber: string,
     file: Express.Multer.File,
   ): Promise<Payment> {
     const order = await this.orderRepo.findById(orderId);
@@ -49,6 +54,12 @@ export class PaymentService {
       throw new AppError(409, 'Payment already submitted and pending review');
     }
 
+    const expectedAmountYer = await this.verificationService.resolveExpectedAmountYer(Number(order.total));
+    const normalizedAccount = normalizeAccountNumber(payerAccountNumber);
+    if (normalizedAccount.length < 6) {
+      throw new AppError(400, 'Invalid payer account number');
+    }
+
     const payment = await this.paymentRepo.create({
       orderId,
       amount: Number(order.total),
@@ -66,6 +77,13 @@ export class PaymentService {
     payment.receipt_document_url = uploaded.url;
     payment.receipt_public_id = uploaded.public_id;
 
+    await this.verificationService.registerPendingVerification({
+      orderId,
+      paymentId: payment.id,
+      payerAccountNumber: normalizedAccount,
+      expectedAmountYer,
+    });
+
     const staffPayment = notificationMessages.staffPaymentSubmitted(order.order_number);
     void this.notificationService.notifyStaff({
       type: staffPayment.type,
@@ -75,6 +93,29 @@ export class PaymentService {
     });
 
     return payment;
+  }
+
+  async autoApprovePayment(paymentId: string, historyReason: string): Promise<void> {
+    const payment = await this.paymentRepo.findById(paymentId);
+    if (!payment) throw new AppError(404, 'Payment not found');
+    if (payment.status !== 'pending') return;
+
+    await AppDataSource.transaction(async (manager) => {
+      await this.paymentRepo.updateStatus(paymentId, 'approved', null, null);
+      await this.finalizeApprovedPayment(payment.order_id, null, manager, historyReason);
+    });
+
+    const order = await this.orderRepo.findById(payment.order_id);
+    if (order) {
+      const copy = notificationMessages.paymentApproved(order.order_number);
+      void this.notificationService.notifyCustomer({
+        customerId: order.customer_id,
+        type: copy.type,
+        title: copy.title,
+        message: copy.message,
+        relatedOrderId: order.id,
+      });
+    }
   }
 
   async approvePayment(paymentId: string, adminId: string): Promise<void> {
@@ -176,7 +217,7 @@ export class PaymentService {
 
   private async finalizeApprovedPayment(
     orderId: string,
-    adminId: string,
+    adminId: string | null,
     manager: EntityManager,
     historyReason: string,
   ): Promise<void> {

@@ -7,12 +7,15 @@ import { generateDeviceApiKey } from '../../utils/generateDeviceApiKey';
 import { PaymentDevice } from '../../models/PaymentDevice';
 import { PaymentProvider } from '../../models/PaymentProvider';
 import { PaymentSmsEvent } from '../../models/PaymentSmsEvent';
+import { PaymentVerificationService } from './PaymentVerificationService';
 
 @injectable()
 export class PaymentBridgeService {
   constructor(
     @inject(REPOSITORY_TOKENS.IPaymentBridgeRepository)
     private paymentBridgeRepo: IPaymentBridgeRepository,
+    @inject(PaymentVerificationService)
+    private verificationService: PaymentVerificationService,
   ) {}
 
   async listDevices(): Promise<PaymentDevice[]> {
@@ -100,13 +103,19 @@ export class PaymentBridgeService {
       throw new AppError(400, 'provider, senderAddress, and rawMessage are required');
     }
 
-    return this.paymentBridgeRepo.createSmsEvent({
+    const event = await this.paymentBridgeRepo.createSmsEvent({
       device_id: deviceId,
       provider: payload.provider.trim().toLowerCase(),
       sender_address: payload.senderAddress.trim(),
       raw_message: payload.rawMessage,
       received_at: receivedAt,
     });
+
+    void this.verificationService.processSmsEvent(event.id).catch((error) => {
+      console.error('[payment-bridge] SMS verification failed:', error);
+    });
+
+    return event;
   }
 
   buildPingMessage(deviceUuid: string): string {

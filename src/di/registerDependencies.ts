@@ -49,6 +49,8 @@ import { AdminInventoryService } from '../services/admin/AdminInventoryService';
 import { RefundRequestService } from '../services/refund/RefundRequestService';
 import { ExpenseService } from '../services/expense/ExpenseService';
 import { PaymentBridgeService } from '../services/paymentBridge/PaymentBridgeService';
+import { PaymentSmsParserService } from '../services/paymentBridge/PaymentSmsParserService';
+import { PaymentVerificationService } from '../services/paymentBridge/PaymentVerificationService';
 import { PaymentDeviceAuthService } from '../middleware/paymentDeviceAuth';
 
 // Controllers
@@ -135,6 +137,8 @@ export function registerDependencies(): void {
   container.registerSingleton(RefundRequestService, RefundRequestService);
   container.registerSingleton(ExpenseService, ExpenseService);
   container.registerSingleton(PaymentBridgeService, PaymentBridgeService);
+  container.registerSingleton(PaymentSmsParserService, PaymentSmsParserService);
+  container.registerSingleton(PaymentVerificationService, PaymentVerificationService);
   container.registerSingleton(PaymentDeviceAuthService, PaymentDeviceAuthService);
 
   // ─── Controllers ─────────────────────────────────────────────────────────

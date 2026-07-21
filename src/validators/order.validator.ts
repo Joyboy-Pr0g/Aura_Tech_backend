@@ -23,6 +23,7 @@ export const checkoutSchema = Joi.object({
 
 export const submitPaymentSchema = Joi.object({
   payment_method_id: Joi.string().uuid().required(),
+  payer_account_number: Joi.string().trim().pattern(/^\d{6,15}$/).required(),
 }).unknown(false);
 
 export const updateOrderStatusSchema = Joi.object({

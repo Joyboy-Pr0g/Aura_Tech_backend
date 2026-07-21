@@ -24,6 +24,7 @@ export class PaymentController {
         req.user!.id,
         req.params.orderId,
         req.validatedData.payment_method_id,
+        req.validatedData.payer_account_number,
         req.file,
       );
       res.status(201).json(APIResponse.success('Payment submitted successfully', payment));

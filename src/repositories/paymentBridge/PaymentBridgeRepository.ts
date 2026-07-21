@@ -103,4 +103,37 @@ export class PaymentBridgeRepository implements IPaymentBridgeRepository {
       }),
     );
   }
+
+  async findSmsEventById(id: string): Promise<PaymentSmsEvent | null> {
+    return this.eventRepo.findOne({ where: { id } });
+  }
+
+  async findRecentUnmatchedSmsEvents(since: Date): Promise<PaymentSmsEvent[]> {
+    return this.eventRepo
+      .createQueryBuilder('event')
+      .where('event.received_at >= :since', { since })
+      .andWhere('event.matched_order_id IS NULL')
+      .orderBy('event.received_at', 'DESC')
+      .getMany();
+  }
+
+  async updateSmsEventParsed(
+    id: string,
+    data: {
+      parsed_provider?: string;
+      parsed_amount?: number;
+      parsed_currency?: string;
+      parsed_account_number?: string;
+      parsed_balance?: number | null;
+      parsed_sender?: string | null;
+      parse_method?: 'regex' | 'gemini' | 'failed';
+      parse_status?: 'pending' | 'parsed' | 'failed';
+    },
+  ): Promise<void> {
+    await this.eventRepo.update(id, data as Partial<PaymentSmsEvent>);
+  }
+
+  async updateSmsEventMatched(id: string, orderId: string): Promise<void> {
+    await this.eventRepo.update(id, { matched_order_id: orderId, parse_status: 'parsed' });
+  }
 }

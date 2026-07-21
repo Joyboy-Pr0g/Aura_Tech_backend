@@ -1,6 +1,6 @@
 import { injectable } from 'tsyringe';
 import { AppDataSource } from '../../config/database';
-import { Payment, PaymentStatus } from '../../models/Payment';
+import { Payment, PaymentStatus, AutoVerifyStatus } from '../../models/Payment';
 import { PaymentMethod } from '../../models/PaymentMethod';
 import { IPaymentRepository } from '../../interfaces/repositories/IPaymentRepository';
 import {
@@ -110,6 +110,17 @@ export class PaymentRepository implements IPaymentRepository {
       patch.rejected_at = new Date();
     }
     await this.repo.update(id, patch);
+  }
+
+  async updateAutoVerifyFields(
+    id: string,
+    fields: {
+      payer_account_number?: string;
+      expected_amount_yer?: number;
+      auto_verify_status?: AutoVerifyStatus;
+    },
+  ): Promise<void> {
+    await this.repo.update(id, fields as Partial<Payment>);
   }
 
   async findAllMethods(): Promise<PaymentMethod[]> {
