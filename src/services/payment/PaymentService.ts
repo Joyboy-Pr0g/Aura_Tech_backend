@@ -16,6 +16,7 @@ import { notificationMessages } from '../../i18n/notification-messages';
 import { logAdminAction } from '../../utils/logAdminAction';
 import { PaymentVerificationService } from '../paymentBridge/PaymentVerificationService';
 import { normalizeAccountNumber } from '../../utils/convertSarToYer';
+import { paymentVerifyDebug } from '../../utils/paymentVerifyDebug';
 
 @injectable()
 export class PaymentService {
@@ -60,6 +61,15 @@ export class PaymentService {
       throw new AppError(400, 'Invalid payer account number');
     }
 
+    paymentVerifyDebug('submit_payment', {
+      orderId,
+      orderNumber: order.order_number,
+      orderTotalSar: Number(order.total),
+      expectedAmountYer,
+      payerAccount: normalizedAccount,
+      paymentMethodId,
+    });
+
     const payment = await this.paymentRepo.create({
       orderId,
       amount: Number(order.total),
@@ -82,6 +92,12 @@ export class PaymentService {
       paymentId: payment.id,
       payerAccountNumber: normalizedAccount,
       expectedAmountYer,
+    });
+
+    paymentVerifyDebug('submit_payment_registered', {
+      orderId,
+      paymentId: payment.id,
+      autoVerifyStatus: 'pending',
     });
 
     const staffPayment = notificationMessages.staffPaymentSubmitted(order.order_number);
