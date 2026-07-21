@@ -15,6 +15,7 @@ import reminderRoutes from './reminder.routes';
 import couponRoutes from './coupon.routes';
 import visitRoutes from './visit.routes';
 import blogRoutes from './blog.routes';
+import paymentBridgeRoutes from './paymentBridge.routes';
 import adminRoutes from './admin';
 
 const router = Router();
@@ -34,7 +35,7 @@ router.use('/reminders', reminderRoutes);
 router.use('/coupons', couponRoutes);
 router.use('/visits', visitRoutes);
 router.use('/blogs', blogRoutes);
-// Admin before engagement: engagement is mounted at `/` and must not intercept /admin/*
+router.use('/', paymentBridgeRoutes);
 router.use('/admin', adminRoutes);
 router.use('/', engagementRoutes);
 

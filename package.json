@@ -12,7 +12,8 @@
     "migration:run": "npm run typeorm -- migration:run -d data-source.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d data-source.ts",
     "seed": "ts-node --transpile-only src/seeds/index.ts",
-    "seed:users": "ts-node --transpile-only src/seeds/userSeeder.ts"
+    "seed:users": "ts-node --transpile-only src/seeds/userSeeder.ts",
+    "seed:payment-bridge": "ts-node --transpile-only src/seeds/runPaymentBridgeSeed.ts"
   },
   "dependencies": {
     "@getbrevo/brevo": "^6.0.2",

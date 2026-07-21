@@ -21,6 +21,7 @@ import { NotificationRepository } from '../repositories/notification/Notificatio
 import { InventoryRepository } from '../repositories/inventory/InventoryRepository';
 import { RefundRequestRepository } from '../repositories/refund/RefundRequestRepository';
 import { ExpenseRepository } from '../repositories/expense/ExpenseRepository';
+import { PaymentBridgeRepository } from '../repositories/paymentBridge/PaymentBridgeRepository';
 
 // Services
 import { AuthService } from '../services/auth/AuthService';
@@ -47,6 +48,8 @@ import { AdminAnalyticsService } from '../services/admin/AdminAnalyticsService';
 import { AdminInventoryService } from '../services/admin/AdminInventoryService';
 import { RefundRequestService } from '../services/refund/RefundRequestService';
 import { ExpenseService } from '../services/expense/ExpenseService';
+import { PaymentBridgeService } from '../services/paymentBridge/PaymentBridgeService';
+import { PaymentDeviceAuthService } from '../middleware/paymentDeviceAuth';
 
 // Controllers
 import { AuthController } from '../controllers/auth/AuthController';
@@ -80,6 +83,8 @@ import { AdminWebsiteSettingsController } from '../controllers/admin/Admin.Websi
 import { WebsiteSettingsController } from '../controllers/websiteSettings/WebsiteSettingsController';
 import { RefundRequestController, AdminRefundRequestController } from '../controllers/refund/RefundRequestController';
 import { AdminExpenseController } from '../controllers/expense/AdminExpenseController';
+import { PaymentBridgeController } from '../controllers/paymentBridge/PaymentBridgeController';
+import { AdminPaymentBridgeController } from '../controllers/paymentBridge/AdminPaymentBridgeController';
 
 export function registerDependencies(): void {
   // ─── Repositories ────────────────────────────────────────────────────────
@@ -102,6 +107,7 @@ export function registerDependencies(): void {
   container.registerSingleton(REPOSITORY_TOKENS.IInventoryRepository, InventoryRepository);
   container.registerSingleton(REPOSITORY_TOKENS.IRefundRequestRepository, RefundRequestRepository);
   container.registerSingleton(REPOSITORY_TOKENS.IExpenseRepository, ExpenseRepository);
+  container.registerSingleton(REPOSITORY_TOKENS.IPaymentBridgeRepository, PaymentBridgeRepository);
 
   // ─── Services ────────────────────────────────────────────────────────────
   container.registerSingleton(AuthService, AuthService);
@@ -128,6 +134,8 @@ export function registerDependencies(): void {
   container.registerSingleton(AdminInventoryService, AdminInventoryService);
   container.registerSingleton(RefundRequestService, RefundRequestService);
   container.registerSingleton(ExpenseService, ExpenseService);
+  container.registerSingleton(PaymentBridgeService, PaymentBridgeService);
+  container.registerSingleton(PaymentDeviceAuthService, PaymentDeviceAuthService);
 
   // ─── Controllers ─────────────────────────────────────────────────────────
   container.registerSingleton(AuthController, AuthController);
@@ -162,4 +170,6 @@ export function registerDependencies(): void {
   container.registerSingleton(RefundRequestController, RefundRequestController);
   container.registerSingleton(AdminRefundRequestController, AdminRefundRequestController);
   container.registerSingleton(AdminExpenseController, AdminExpenseController);
+  container.registerSingleton(PaymentBridgeController, PaymentBridgeController);
+  container.registerSingleton(AdminPaymentBridgeController, AdminPaymentBridgeController);
 }
