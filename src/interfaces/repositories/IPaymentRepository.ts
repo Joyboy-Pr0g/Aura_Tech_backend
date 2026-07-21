@@ -38,7 +38,14 @@ export interface IPaymentRepository {
 
   findAllMethods(): Promise<PaymentMethod[]>;
   findMethodById(id: string): Promise<PaymentMethod | null>;
-  createMethod(dto: { name: string; bank_name: string; account_number?: string; iban?: string; description?: string }): Promise<PaymentMethod>;
+  createMethod(dto: {
+    name: string;
+    account_holder_name: string;
+    bank_name: string;
+    account_number?: string;
+    iban?: string;
+    description?: string;
+  }): Promise<PaymentMethod>;
   updateMethod(id: string, dto: Partial<PaymentMethod>): Promise<void>;
   softDeleteMethod(id: string): Promise<void>;
   getTotalPayment(): Promise<number>;

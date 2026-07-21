@@ -131,7 +131,14 @@ export class PaymentRepository implements IPaymentRepository {
     return this.methodRepo.findOne({ where: { id } });
   }
 
-  async createMethod(dto: { name: string; bank_name: string; account_number?: string; iban?: string; description?: string }): Promise<PaymentMethod> {
+  async createMethod(dto: {
+    name: string;
+    account_holder_name: string;
+    bank_name: string;
+    account_number?: string;
+    iban?: string;
+    description?: string;
+  }): Promise<PaymentMethod> {
     const method = this.methodRepo.create(dto);
     return this.methodRepo.save(method);
   }

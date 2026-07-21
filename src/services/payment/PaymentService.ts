@@ -308,7 +308,14 @@ export class PaymentService {
     return this.paymentRepo.findAllMethods();
   }
 
-  async createPaymentMethod(dto: { name: string; bank_name: string; account_number?: string; iban?: string; description?: string }) {
+  async createPaymentMethod(dto: {
+    name: string;
+    account_holder_name: string;
+    bank_name: string;
+    account_number?: string;
+    iban?: string;
+    description?: string;
+  }) {
     return this.paymentRepo.createMethod(dto);
   }
 

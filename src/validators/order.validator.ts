@@ -85,6 +85,7 @@ export const addressSchema = Joi.object({
 
 export const paymentMethodSchema = Joi.object({
   name: Joi.string().max(100).required(),
+  account_holder_name: Joi.string().max(100).required(),
   bank_name: Joi.string().max(100).required(),
   account_number: Joi.string().max(50).optional(),
   iban: Joi.string().max(50).optional(),
@@ -93,6 +94,7 @@ export const paymentMethodSchema = Joi.object({
 
 export const updatePaymentMethodSchema = Joi.object({
   name: Joi.string().max(100).optional(),
+  account_holder_name: Joi.string().max(100).optional(),
   bank_name: Joi.string().max(100).optional(),
   account_number: Joi.string().max(50).optional(),
   iban: Joi.string().max(50).optional(),
