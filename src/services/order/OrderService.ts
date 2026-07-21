@@ -207,7 +207,8 @@ export class OrderService {
       relatedOrderId: order.savedOrder.id,
     });
 
-    return order.savedOrder;
+    const fullOrder = await this.orderRepo.findById(order.savedOrder.id);
+    return fullOrder ?? order.savedOrder;
   }
 
   async getMyOrders(
