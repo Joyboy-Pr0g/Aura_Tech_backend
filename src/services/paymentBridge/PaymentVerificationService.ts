@@ -170,6 +170,8 @@ export class PaymentVerificationService {
       since: since.toISOString(),
     });
 
+    let sawUnparseableSms = false;
+
     for (const event of events) {
       if (event.matched_order_id) continue;
 
@@ -197,6 +199,13 @@ export class PaymentVerificationService {
             parse_method: parseResult.method,
             parse_status: 'parsed',
           });
+        } else {
+          sawUnparseableSms = true;
+          paymentVerifyDebug('try_match_order_parse_failed', {
+            orderId,
+            smsEventId: event.id,
+            parseStatus: event.parse_status,
+          });
         }
       }
 
@@ -204,6 +213,17 @@ export class PaymentVerificationService {
 
       const matched = await this.attemptMatch(orderId, pending, event.id, parsed, event.provider);
       if (matched) return;
+    }
+
+    const payment = await this.paymentRepo.findByOrderId(orderId);
+    if (
+      sawUnparseableSms
+      && payment?.status === 'pending'
+      && payment.auto_verify_status === 'pending'
+    ) {
+      paymentVerifyDebug('try_match_order_notify_parse_failed', { orderId, paymentId: pending.paymentId });
+      await this.notifyAutoVerifyFailed(orderId, pending.paymentId, 'parse_failed');
+      return;
     }
 
     paymentVerifyDebug('try_match_order_no_match', { orderId });
@@ -267,8 +287,7 @@ export class PaymentVerificationService {
         providerForMatch,
         activeProviders: providers.map((p) => ({ name: p.name, aliases: p.aliases ?? [] })),
       });
-      await this.paymentRepo.updateAutoVerifyFields(payment.id, { auto_verify_status: 'match_failed' });
-      await this.notifyManualReview(orderId, payment.id);
+      await this.notifyAutoVerifyFailed(orderId, payment.id, 'match_failed');
       return false;
     }
 
@@ -285,8 +304,7 @@ export class PaymentVerificationService {
         accountMatch: account === pending.account,
         amountMatch: amountYer === pending.amountYer,
       });
-      await this.paymentRepo.updateAutoVerifyFields(payment.id, { auto_verify_status: 'match_failed' });
-      await this.notifyManualReview(orderId, payment.id);
+      await this.notifyAutoVerifyFailed(orderId, payment.id, 'match_failed');
       return false;
     }
 
@@ -322,7 +340,7 @@ export class PaymentVerificationService {
     });
 
     if (candidates.length === 1) {
-      await this.notifyParseFailure(candidates[0].orderId, candidates[0].paymentId);
+      await this.notifyAutoVerifyFailed(candidates[0].orderId, candidates[0].paymentId, 'parse_failed');
       return;
     }
 
@@ -340,11 +358,19 @@ export class PaymentVerificationService {
     }
   }
 
-  private async notifyParseFailure(orderId: string, paymentId: string): Promise<void> {
+  private async notifyAutoVerifyFailed(
+    orderId: string,
+    paymentId: string,
+    status: 'parse_failed' | 'match_failed',
+  ): Promise<void> {
     const order = await this.orderRepo.findById(orderId);
     if (!order) return;
 
-    await this.paymentRepo.updateAutoVerifyFields(paymentId, { auto_verify_status: 'parse_failed' });
+    const payment = await this.paymentRepo.findById(paymentId);
+    if (!payment || payment.status !== 'pending') return;
+    if (payment.auto_verify_status !== 'pending') return;
+
+    await this.paymentRepo.updateAutoVerifyFields(paymentId, { auto_verify_status: status });
 
     const copy = notificationMessages.autoVerifyFailed(order.order_number);
     void this.notificationService.notifyCustomer({
@@ -355,27 +381,15 @@ export class PaymentVerificationService {
       relatedOrderId: order.id,
     });
 
-    const staff = notificationMessages.staffPaymentSubmitted(order.order_number);
-    void this.notificationService.notifyStaff({
-      type: staff.type,
-      title: staff.title,
-      message: staff.message,
-      relatedOrderId: order.id,
-    });
-  }
-
-  private async notifyManualReview(orderId: string, paymentId: string): Promise<void> {
-    const order = await this.orderRepo.findById(orderId);
-    if (!order) return;
-
-    const copy = notificationMessages.autoVerifyFailed(order.order_number);
-    void this.notificationService.notifyCustomer({
-      customerId: order.customer_id,
-      type: copy.type,
-      title: copy.title,
-      message: copy.message,
-      relatedOrderId: order.id,
-    });
+    if (status === 'parse_failed') {
+      const staff = notificationMessages.staffPaymentSubmitted(order.order_number);
+      void this.notificationService.notifyStaff({
+        type: staff.type,
+        title: staff.title,
+        message: staff.message,
+        relatedOrderId: order.id,
+      });
+    }
   }
 
   private async getPendingVerification(orderId: string): Promise<PendingVerification | null> {
