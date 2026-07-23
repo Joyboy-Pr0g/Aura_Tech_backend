@@ -13,13 +13,14 @@ export class AdminProductController {
 
   createProduct = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      const { title, description, price, category_id, sub_category_id, brand, features, variants, stock_quantity } = req.validatedData;
+      const { title, description, price, discount_price, category_id, sub_category_id, brand, features, variants, stock_quantity } = req.validatedData;
       const { imageFiles, variantImageFiles } = parseProductUploadFiles(req.files as Express.Multer.File[] | undefined);
 
       const product = await this.adminProductService.createProduct({
         title,
         description,
         price,
+        discount_price,
         category_id,
         sub_category_id,
         brand,

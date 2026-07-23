@@ -44,6 +44,7 @@ export type VariantInput = {
   size?: string | null;
   color?: string | null;
   price?: number | null;
+  discount_price?: number | null;
   stock_quantity?: number;
   delete_image_public_id?: string | null;
 };

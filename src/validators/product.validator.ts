@@ -31,6 +31,7 @@ const productVariantSchema = Joi.object({
   size: Joi.string().optional().allow(null, ''),
   color: Joi.string().optional().allow(null, ''),
   price: Joi.number().positive().optional().allow(null),
+  discount_price: Joi.number().positive().precision(2).optional().allow(null, ''),
   stock_quantity: Joi.number().integer().min(0).default(0),
   delete_image_public_id: Joi.string().optional().allow(null, ''),
 });
@@ -39,6 +40,7 @@ export const createProductSchema = Joi.object({
   title: Joi.string().min(3).max(200).required(),
   description: Joi.string().min(10).required(),
   price: Joi.number().positive().precision(2).required(),
+  discount_price: Joi.number().positive().precision(2).optional().allow(null, ''),
   category_id: Joi.string().uuid().required(),
   sub_category_id: Joi.string().uuid().optional().allow(null, ''),
   brand: Joi.string().max(100).optional().allow(null, ''),
@@ -51,6 +53,7 @@ export const updateProductSchema = Joi.object({
   title: Joi.string().min(3).max(200).optional(),
   description: Joi.string().min(10).optional(),
   price: Joi.number().positive().precision(2).optional(),
+  discount_price: Joi.number().positive().precision(2).optional().allow(null, ''),
   category_id: Joi.string().uuid().optional(),
   sub_category_id: Joi.string().uuid().optional().allow(null, ''),
   brand: Joi.string().max(100).optional().allow(null, ''),

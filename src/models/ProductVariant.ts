@@ -37,6 +37,9 @@ export class ProductVariant {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   price: number | null;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'discount_price' })
+  discount_price: number | null;
+
   @Column({ type: 'integer', default: 0, name: 'stock_quantity' })
   stock_quantity: number;
 

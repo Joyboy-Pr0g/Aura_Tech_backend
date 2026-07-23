@@ -8,6 +8,7 @@ export interface CreateProductDto {
   title: string;
   description: string;
   price: number;
+  discount_price?: number | null;
   brand?: string | null;
   features?: Record<string, any>;
   stock_quantity?: number;
@@ -36,7 +37,7 @@ export interface IProductRepository {
   findMany(filters: ProductFilters): Promise<CursorListResult<Product>>;
   existsBySlug(slug: string): Promise<boolean>;
   create(dto: CreateProductDto): Promise<Product>;
-  update(id: string, dto: Partial<CreateProductDto & { stock_quantity?: number }>): Promise<Product | null>;
+  update(id: string, dto: Partial<CreateProductDto & { stock_quantity?: number; discount_price?: number | null }>): Promise<Product | null>;
   softDelete(id: string): Promise<void>;
   adjustStock(productId: string, variantId: string | null, delta: number): Promise<void>;
   getTotalProductCount(): Promise<number>;

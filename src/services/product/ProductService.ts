@@ -27,6 +27,11 @@ function variantSkuFolder(sku: string): string {
   return toSlug(sku);
 }
 
+function normalizeDiscountPrice(value?: number | null): number | null {
+  if (value === undefined || value === null) return null;
+  return value;
+}
+
 @injectable()
 export class ProductService {
   constructor(
@@ -83,6 +88,7 @@ export class ProductService {
     title: string;
     description: string;
     price: number;
+    discount_price?: number | null;
     category_id: string;
     sub_category_id?: string | null;
     brand?: string;
@@ -122,6 +128,7 @@ export class ProductService {
       title: data.title,
       description: data.description,
       price: data.price,
+      discount_price: normalizeDiscountPrice(data.discount_price),
       brand: data.brand ?? null,
       features: data.features ?? {},
       stock_quantity: data.variants?.length ? 0 : (data.stock_quantity ?? 0),
@@ -150,6 +157,7 @@ export class ProductService {
             size: variant.size ?? null,
             color: variant.color ?? null,
             price: variant.price ?? null,
+            discount_price: normalizeDiscountPrice(variant.discount_price),
             stock_quantity: variant.stock_quantity ?? 0,
             images: variantImages,
           }),
@@ -166,6 +174,7 @@ export class ProductService {
       title?: string;
       description?: string;
       price?: number;
+      discount_price?: number | null;
       category_id?: string;
       sub_category_id?: string | null;
       brand?: string | null;
@@ -195,6 +204,9 @@ export class ProductService {
     if (data.title !== undefined) updates.title = data.title;
     if (data.description !== undefined) updates.description = data.description;
     if (data.price !== undefined) updates.price = data.price;
+    if (data.discount_price !== undefined) {
+      updates.discount_price = normalizeDiscountPrice(data.discount_price);
+    }
     if (data.category_id !== undefined) updates.category_id = data.category_id;
     if (data.sub_category_id !== undefined) updates.sub_category_id = nextSubCategoryId;
     if (data.brand !== undefined) updates.brand = data.brand;
@@ -279,6 +291,7 @@ export class ProductService {
           size: variant.size ?? null,
           color: variant.color ?? null,
           price: variant.price ?? null,
+          discount_price: normalizeDiscountPrice(variant.discount_price),
           stock_quantity: variant.stock_quantity ?? 0,
           images: nextImages,
         });
@@ -292,6 +305,7 @@ export class ProductService {
           size: variant.size ?? null,
           color: variant.color ?? null,
           price: variant.price ?? null,
+          discount_price: normalizeDiscountPrice(variant.discount_price),
           stock_quantity: variant.stock_quantity ?? 0,
           images: uploadedImages,
         }),

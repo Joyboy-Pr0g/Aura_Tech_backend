@@ -18,6 +18,7 @@ export interface AdminCreateProductInput {
   title: string;
   description: string;
   price: number;
+  discount_price?: number | null;
   category_id: string;
   sub_category_id?: string | null;
   brand?: string;
@@ -33,6 +34,7 @@ export interface AdminUpdateProductInput {
   title?: string;
   description?: string;
   price?: number;
+  discount_price?: number | null;
   category_id?: string;
   sub_category_id?: string | null;
   brand?: string | null;
