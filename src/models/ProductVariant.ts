@@ -28,11 +28,8 @@ export class ProductVariant {
   @Index()
   sku: string;
 
-  @Column({ type: 'varchar', nullable: true })
-  size: string | null;
-
-  @Column({ type: 'varchar', nullable: true })
-  color: string | null;
+  @Column({ type: 'jsonb', default: {} })
+  features: Record<string, string>;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   price: number | null;

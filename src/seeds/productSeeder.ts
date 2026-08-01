@@ -1163,12 +1163,15 @@ export async function seedProducts(): Promise<void> {
     );
 
     for (const v of p.variants ?? []) {
+      const features: Record<string, string> = {};
+      if (v.color) features.Color = v.color;
+      if (v.size) features.Size = v.size;
+
       await variantRepo.save(
         variantRepo.create({
           product_id: product.id,
           sku: v.sku,
-          size: v.size,
-          color: v.color,
+          features,
           stock_quantity: v.stock_quantity,
           price: v.price ?? null,
         }),

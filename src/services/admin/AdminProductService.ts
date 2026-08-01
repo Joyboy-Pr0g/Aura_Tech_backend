@@ -13,6 +13,7 @@ import { AppDataSource } from '../../config/database';
 import { ProductService } from '../product/ProductService';
 import { ParsedProductUploadFile, VariantInput } from '../../utils/productUploadFiles';
 import { logAdminAction } from '../../utils/logAdminAction';
+import { normalizeVariantFeatures } from '../../utils/variantFeatures';
 
 export interface AdminCreateProductInput {
   title: string;
@@ -71,7 +72,10 @@ export class AdminProductService {
   }
 
   async createProduct(data: AdminCreateProductInput): Promise<Product> {
-    const product = await this.productService.create(data);
+    const product = await this.productService.create({
+      ...data,
+      variants: this.normalizeVariants(data.variants),
+    });
     void logAdminAction({
       admin_id: data.created_by_id,
       action: 'create',
@@ -83,7 +87,14 @@ export class AdminProductService {
   }
 
   async updateProduct(id: string, data: AdminUpdateProductInput, adminId: string): Promise<Product> {
-    const product = await this.productService.update(id, data, adminId);
+    const product = await this.productService.update(
+      id,
+      {
+        ...data,
+        variants: this.normalizeVariants(data.variants),
+      },
+      adminId,
+    );
     void logAdminAction({
       admin_id: adminId,
       action: 'update',
@@ -101,7 +112,15 @@ export class AdminProductService {
     variantId?: string,
     notes?: string,
   ): Promise<Product> {
-    return this.productService.addStock(productId, quantity, adminId, variantId, notes);
+    const product = await this.productService.addStock(productId, quantity, adminId, variantId, notes);
+    void logAdminAction({
+      admin_id: adminId,
+      action: `إضافة مخزون بمقدار ${quantity}`,
+      entity_type: 'product',
+      entity_id: productId,
+      changes_json: { stock_quantity: product.stock_quantity },
+    });
+    return product;
   }
 
   async softDeleteProduct(id: string, adminId: string): Promise<void> {
@@ -162,6 +181,14 @@ export class AdminProductService {
 
   async removeImage(productId: string, imageId: string, adminId: string): Promise<Product> {
     return this.productService.removeImage(productId, imageId, adminId);
+  }
+
+  private normalizeVariants(variants?: VariantInput[]): VariantInput[] | undefined {
+    if (variants === undefined) return undefined;
+    return variants.map((variant) => ({
+      ...variant,
+      features: normalizeVariantFeatures(variant.features),
+    }));
   }
 
   private async ensureExists(id: string): Promise<Product> {

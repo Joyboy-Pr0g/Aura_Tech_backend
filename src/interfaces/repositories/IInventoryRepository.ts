@@ -28,6 +28,7 @@ export interface IInventoryRepository {
     action: string;
     admin_email: string | null;
     admin_name: string | null;
+    changes_json: Record<string, unknown> | null;
     created_at: Date;
   }>>;
 }

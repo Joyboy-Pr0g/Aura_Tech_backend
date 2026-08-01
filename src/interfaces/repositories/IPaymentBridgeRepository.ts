@@ -1,3 +1,4 @@
+import { EntityManager } from 'typeorm';
 import { PaymentDevice } from '../../models/PaymentDevice';
 import { PaymentProvider } from '../../models/PaymentProvider';
 import { PaymentSmsEvent, SmsParseMethod, SmsParseStatus } from '../../models/PaymentSmsEvent';
@@ -50,7 +51,7 @@ export interface IPaymentBridgeRepository {
 
   createSmsEvent(data: CreatePaymentSmsEventDto): Promise<PaymentSmsEvent>;
   findSmsEventById(id: string): Promise<PaymentSmsEvent | null>;
-  findRecentUnmatchedSmsEvents(since: Date): Promise<PaymentSmsEvent[]>;
+  findRecentUnmatchedSmsEvents(since: Date, order?: 'ASC' | 'DESC'): Promise<PaymentSmsEvent[]>;
   updateSmsEventParsed(
     id: string,
     data: {
@@ -65,4 +66,9 @@ export interface IPaymentBridgeRepository {
     },
   ): Promise<void>;
   updateSmsEventMatched(id: string, orderId: string): Promise<void>;
+  claimSmsEventForOrder(
+    smsEventId: string,
+    orderId: string,
+    manager?: EntityManager,
+  ): Promise<boolean>;
 }

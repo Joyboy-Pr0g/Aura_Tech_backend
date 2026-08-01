@@ -3,6 +3,7 @@ import { AppDataSource } from '../../config/database';
 import { Product } from '../../models/Product';
 import { ProductVariant } from '../../models/ProductVariant';
 import { InventoryLog } from '../../models/InventoryLog';
+import { normalizeVariantFeatures } from '../../utils/variantFeatures';
 import {
   IProductRepository,
   CreateProductDto,
@@ -79,11 +80,28 @@ export class ProductRepository implements IProductRepository {
     });
   }
 
+  private mapVariantFeatures(variants: ProductVariant[] | undefined): ProductVariant[] | undefined {
+    if (!variants?.length) return variants;
+    return variants.map((variant) => ({
+      ...variant,
+      features: normalizeVariantFeatures(variant.features),
+    }));
+  }
+
+  private mapProductVariants(product: Product | null): Product | null {
+    if (!product) return null;
+    if (product.variants?.length) {
+      product.variants = this.mapVariantFeatures(product.variants)!;
+    }
+    return product;
+  }
+
   async findById(id: string): Promise<Product | null> {
-    return this.repo.findOne({
+    const product = await this.repo.findOne({
       where: { id },
       relations: ['category', 'sub_category', 'variants'],
     });
+    return this.mapProductVariants(product);
   }
 
   async findBySlug(slug: string, userId?: string): Promise<Product | null> {
@@ -98,10 +116,10 @@ export class ProductRepository implements IProductRepository {
     if (userId) {
       this.applyWishlistSelect(qb, userId);
       const { entities, raw } = await qb.getRawAndEntities();
-      return this.mapWishlistFlag(entities, raw)[0] ?? null;
+      return this.mapProductVariants(this.mapWishlistFlag(entities, raw)[0] ?? null);
     }
 
-    return qb.getOne();
+    return this.mapProductVariants(await qb.getOne());
   }
 
   async findMany(filters: ProductFilters): Promise<CursorListResult<Product>> {
@@ -131,6 +149,12 @@ export class ProductRepository implements IProductRepository {
     } else {
       rows = await qb.getMany();
     }
+
+    rows.forEach((product) => {
+      if (product.variants?.length) {
+        product.variants = this.mapVariantFeatures(product.variants)!;
+      }
+    });
 
     return paginateByCursor(rows, limit);
   }
@@ -196,15 +220,21 @@ export class ProductRepository implements IProductRepository {
     applyCreatedAtIdCursorDesc(qb, 'p', cursor ?? null);
     qb.orderBy('p.created_at', 'DESC').addOrderBy('p.id', 'DESC').take(limit + 1);
     const rows = await qb.getMany();
+    rows.forEach((product) => {
+      if (product.variants?.length) {
+        product.variants = this.mapVariantFeatures(product.variants)!;
+      }
+    });
     return paginateByCursor(rows, limit);
   }
 
   async findByIdAdmin(id: string): Promise<Product | null> {
-    return this.repo.findOne({
+    const product = await this.repo.findOne({
       where: { id },
       withDeleted: true,
       relations: ['category', 'sub_category', 'variants', 'created_by', 'updated_by'],
     });
+    return this.mapProductVariants(product);
   }
 
   async restore(id: string): Promise<void> {

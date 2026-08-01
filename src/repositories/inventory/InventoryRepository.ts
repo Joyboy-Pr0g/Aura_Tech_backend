@@ -95,6 +95,7 @@ export class InventoryRepository implements IInventoryRepository {
     action: string;
     admin_email: string | null;
     admin_name: string | null;
+    changes_json: Record<string, unknown> | null;
     created_at: Date;
   }>> {
     if (entityIds.length === 0) return [];
@@ -105,6 +106,7 @@ export class InventoryRepository implements IInventoryRepository {
          a.action,
          u.email AS admin_email,
          u.full_name AS admin_name,
+         a.changes_json,
          a.created_at
        FROM admin_action_logs a
        LEFT JOIN users u ON u.id = a.admin_id
@@ -119,12 +121,14 @@ export class InventoryRepository implements IInventoryRepository {
       action: string;
       admin_email: string | null;
       admin_name: string | null;
+      changes_json: Record<string, unknown> | null;
       created_at: Date;
     }) => ({
       entity_id: r.entity_id,
       action: r.action,
       admin_email: r.admin_email,
       admin_name: r.admin_name,
+      changes_json: r.changes_json,
       created_at: r.created_at,
     }));
   }

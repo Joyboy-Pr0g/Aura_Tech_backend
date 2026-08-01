@@ -16,7 +16,6 @@ import { notificationMessages } from '../../i18n/notification-messages';
 import { logAdminAction } from '../../utils/logAdminAction';
 import { PaymentVerificationService } from '../paymentBridge/PaymentVerificationService';
 import { normalizeAccountNumber } from '../../utils/convertSarToYer';
-import { paymentVerifyDebug } from '../../utils/paymentVerifyDebug';
 
 @injectable()
 export class PaymentService {
@@ -61,15 +60,6 @@ export class PaymentService {
       throw new AppError(400, 'Invalid payer account number');
     }
 
-    paymentVerifyDebug('submit_payment', {
-      orderId,
-      orderNumber: order.order_number,
-      orderTotalSar: Number(order.total),
-      expectedAmountYer,
-      payerAccount: normalizedAccount,
-      paymentMethodId,
-    });
-
     const payment = await this.paymentRepo.create({
       orderId,
       amount: Number(order.total),
@@ -94,12 +84,6 @@ export class PaymentService {
       expectedAmountYer,
     });
 
-    paymentVerifyDebug('submit_payment_registered', {
-      orderId,
-      paymentId: payment.id,
-      autoVerifyStatus: 'pending',
-    });
-
     const staffPayment = notificationMessages.staffPaymentSubmitted(order.order_number);
     void this.notificationService.notifyStaff({
       type: staffPayment.type,
@@ -111,27 +95,52 @@ export class PaymentService {
     return payment;
   }
 
-  async autoApprovePayment(paymentId: string, historyReason: string): Promise<void> {
+  async autoApprovePayment(paymentId: string, historyReason: string): Promise<boolean> {
     const payment = await this.paymentRepo.findById(paymentId);
     if (!payment) throw new AppError(404, 'Payment not found');
-    if (payment.status !== 'pending') return;
+    if (payment.status !== 'pending') return false;
 
     await AppDataSource.transaction(async (manager) => {
-      await this.paymentRepo.updateStatus(paymentId, 'approved', null, null);
-      await this.finalizeApprovedPayment(payment.order_id, null, manager, historyReason);
+      await this.approvePendingPaymentWithManager(manager, paymentId, payment.order_id, historyReason);
     });
 
-    const order = await this.orderRepo.findById(payment.order_id);
-    if (order) {
-      const copy = notificationMessages.paymentApproved(order.order_number);
-      void this.notificationService.notifyCustomer({
-        customerId: order.customer_id,
-        type: copy.type,
-        title: copy.title,
-        message: copy.message,
-        relatedOrderId: order.id,
-      });
+    await this.paymentRepo.updateAutoVerifyFields(paymentId, { auto_verify_status: 'matched' });
+    await this.notifyPaymentApproved(payment.order_id);
+    return true;
+  }
+
+  async approvePendingPaymentWithManager(
+    manager: EntityManager,
+    paymentId: string,
+    orderId: string,
+    historyReason: string,
+  ): Promise<void> {
+    const paymentRepo = manager.getRepository(Payment);
+    const current = await paymentRepo.findOne({ where: { id: paymentId } });
+    if (!current || current.status !== 'pending') {
+      throw new AppError(409, 'Payment is not pending');
     }
+
+    await paymentRepo.update(paymentId, {
+      status: 'approved',
+      approved_at: new Date(),
+      auto_verify_status: 'matched',
+    });
+    await this.finalizeApprovedPayment(orderId, null, manager, historyReason);
+  }
+
+  private async notifyPaymentApproved(orderId: string): Promise<void> {
+    const order = await this.orderRepo.findById(orderId);
+    if (!order) return;
+
+    const copy = notificationMessages.paymentApproved(order.order_number);
+    void this.notificationService.notifyCustomer({
+      customerId: order.customer_id,
+      type: copy.type,
+      title: copy.title,
+      message: copy.message,
+      relatedOrderId: order.id,
+    });
   }
 
   async approvePayment(paymentId: string, adminId: string): Promise<void> {

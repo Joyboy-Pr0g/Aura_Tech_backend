@@ -25,11 +25,15 @@ export const listProductsQuerySchema = Joi.object({
   cursor: Joi.string().optional().allow(''),
 }).unknown(false);
 
+const variantFeaturesSchema = Joi.object()
+  .pattern(Joi.string().min(1).max(100), Joi.string().max(200))
+  .optional()
+  .default({});
+
 const productVariantSchema = Joi.object({
   id: Joi.string().uuid().optional(),
   sku: Joi.string().required(),
-  size: Joi.string().optional().allow(null, ''),
-  color: Joi.string().optional().allow(null, ''),
+  features: variantFeaturesSchema,
   price: Joi.number().positive().optional().allow(null),
   discount_price: Joi.number().positive().precision(2).optional().allow(null, ''),
   stock_quantity: Joi.number().integer().min(0).default(0),

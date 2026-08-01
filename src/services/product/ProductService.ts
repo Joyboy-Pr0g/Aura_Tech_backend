@@ -14,6 +14,7 @@ import {
   decodeCreatedAtIdCursor,
 } from '../../utils/cursorPagination';
 import { ParsedProductUploadFile, VariantImageRecord, VariantInput } from '../../utils/productUploadFiles';
+import { normalizeVariantFeatures } from '../../utils/variantFeatures';
 import { SearchService } from '../search/SearchService';
 import { TrendingService } from '../trending/TrendingService';
 import { toSlug } from '../../utils/slug';
@@ -154,8 +155,7 @@ export class ProductService {
           variantRepo.create({
             product_id: product.id,
             sku: variant.sku,
-            size: variant.size ?? null,
-            color: variant.color ?? null,
+            features: normalizeVariantFeatures(variant.features),
             price: variant.price ?? null,
             discount_price: normalizeDiscountPrice(variant.discount_price),
             stock_quantity: variant.stock_quantity ?? 0,
@@ -288,8 +288,7 @@ export class ProductService {
 
         await variantRepo.update(variant.id, {
           sku: variant.sku,
-          size: variant.size ?? null,
-          color: variant.color ?? null,
+          features: normalizeVariantFeatures(variant.features),
           price: variant.price ?? null,
           discount_price: normalizeDiscountPrice(variant.discount_price),
           stock_quantity: variant.stock_quantity ?? 0,
@@ -302,8 +301,7 @@ export class ProductService {
         variantRepo.create({
           product_id: productId,
           sku: variant.sku,
-          size: variant.size ?? null,
-          color: variant.color ?? null,
+          features: normalizeVariantFeatures(variant.features),
           price: variant.price ?? null,
           discount_price: normalizeDiscountPrice(variant.discount_price),
           stock_quantity: variant.stock_quantity ?? 0,

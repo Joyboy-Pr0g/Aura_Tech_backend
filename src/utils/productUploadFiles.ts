@@ -41,8 +41,7 @@ export type VariantImageRecord = { url: string; public_id: string };
 export type VariantInput = {
   id?: string;
   sku: string;
-  size?: string | null;
-  color?: string | null;
+  features?: Record<string, string>;
   price?: number | null;
   discount_price?: number | null;
   stock_quantity?: number;

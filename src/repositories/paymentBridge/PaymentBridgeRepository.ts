@@ -1,4 +1,5 @@
 import { injectable } from 'tsyringe';
+import { EntityManager } from 'typeorm';
 import { AppDataSource } from '../../config/database';
 import {
   CreatePaymentDeviceDto,
@@ -108,12 +109,12 @@ export class PaymentBridgeRepository implements IPaymentBridgeRepository {
     return this.eventRepo.findOne({ where: { id } });
   }
 
-  async findRecentUnmatchedSmsEvents(since: Date): Promise<PaymentSmsEvent[]> {
+  async findRecentUnmatchedSmsEvents(since: Date, order: 'ASC' | 'DESC' = 'DESC'): Promise<PaymentSmsEvent[]> {
     return this.eventRepo
       .createQueryBuilder('event')
       .where('event.received_at >= :since', { since })
       .andWhere('event.matched_order_id IS NULL')
-      .orderBy('event.received_at', 'DESC')
+      .orderBy('event.received_at', order)
       .getMany();
   }
 
@@ -135,5 +136,21 @@ export class PaymentBridgeRepository implements IPaymentBridgeRepository {
 
   async updateSmsEventMatched(id: string, orderId: string): Promise<void> {
     await this.eventRepo.update(id, { matched_order_id: orderId, parse_status: 'parsed' });
+  }
+
+  async claimSmsEventForOrder(
+    smsEventId: string,
+    orderId: string,
+    manager?: EntityManager,
+  ): Promise<boolean> {
+    const repo = manager ? manager.getRepository(PaymentSmsEvent) : this.eventRepo;
+    const result = await repo
+      .createQueryBuilder()
+      .update(PaymentSmsEvent)
+      .set({ matched_order_id: orderId, parse_status: 'parsed' })
+      .where('id = :smsEventId', { smsEventId })
+      .andWhere('matched_order_id IS NULL')
+      .execute();
+    return (result.affected ?? 0) > 0;
   }
 }
