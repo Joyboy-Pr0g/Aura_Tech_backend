@@ -123,6 +123,16 @@ export class PaymentRepository implements IPaymentRepository {
     await this.repo.update(id, fields as Partial<Payment>);
   }
 
+  async findPendingAutoVerifySubmittedBefore(cutoff: Date): Promise<Payment[]> {
+    return this.repo
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.order', 'order')
+      .where('p.status = :status', { status: 'pending' })
+      .andWhere('p.auto_verify_status = :autoStatus', { autoStatus: 'pending' })
+      .andWhere('p.submitted_at <= :cutoff', { cutoff })
+      .getMany();
+  }
+
   async findAllMethods(): Promise<PaymentMethod[]> {
     return this.methodRepo.find({ where: { is_active: true }, order: { created_at: 'ASC' } });
   }

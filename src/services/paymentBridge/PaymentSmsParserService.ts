@@ -1,7 +1,6 @@
 import { injectable } from 'tsyringe';
 import Joi from 'joi';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { paymentVerifyDebug } from '../../utils/paymentVerifyDebug';
 
 export type ParseMethod = 'regex' | 'gemini' | 'failed';
 
@@ -42,30 +41,13 @@ export class PaymentSmsParserService {
   async parseWithFallback(rawMessage: string): Promise<ParseResult> {
     const regexResult = this.parseWithRegex(rawMessage);
     if (regexResult.success && regexResult.data) {
-      paymentVerifyDebug('parse_regex_success', {
-        amount: regexResult.data.amount,
-        account: regexResult.data.account_number,
-        provider: regexResult.data.provider,
-      });
       return regexResult;
     }
 
-    paymentVerifyDebug('parse_regex_failed', { rawMessage });
-
     const geminiResult = await this.parseWithGemini(rawMessage);
     if (geminiResult.success && geminiResult.data) {
-      paymentVerifyDebug('parse_gemini_success', {
-        amount: geminiResult.data.amount,
-        account: geminiResult.data.account_number,
-        provider: geminiResult.data.provider,
-      });
       return geminiResult;
     }
-
-    paymentVerifyDebug('parse_all_failed', {
-      rawMessage,
-      geminiSkipped: !process.env.GEMINI_API_KEY?.trim(),
-    });
 
     return { success: false, method: 'failed' };
   }
@@ -120,7 +102,6 @@ export class PaymentSmsParserService {
   private async parseWithGemini(rawMessage: string): Promise<ParseResult> {
     const apiKey = process.env.GEMINI_API_KEY?.trim();
     if (!apiKey) {
-      paymentVerifyDebug('parse_gemini_skipped', { reason: 'GEMINI_API_KEY not set' });
       return { success: false, method: 'failed' };
     }
 
@@ -150,18 +131,11 @@ ${rawMessage}`;
       const parsed = JSON.parse(jsonText);
       const { error, value } = parsedSchema.validate(parsed, { abortEarly: false, stripUnknown: true });
       if (error || !value) {
-        paymentVerifyDebug('parse_gemini_invalid', {
-          validationErrors: error?.details.map((d) => d.message) ?? [],
-          rawResponse: text.slice(0, 500),
-        });
         return { success: false, method: 'failed' };
       }
 
       return { success: true, method: 'gemini', data: value as ParsedPaymentSms };
     } catch (err) {
-      paymentVerifyDebug('parse_gemini_error', {
-        message: err instanceof Error ? err.message : String(err),
-      });
       return { success: false, method: 'failed' };
     }
   }

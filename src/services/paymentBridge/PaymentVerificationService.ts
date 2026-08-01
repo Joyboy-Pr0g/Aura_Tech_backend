@@ -9,9 +9,9 @@ import { PaymentSmsParserService, ParsedPaymentSms } from './PaymentSmsParserSer
 import { PaymentService } from '../payment/PaymentService';
 import { WebsiteSettingsService } from '../websiteSettings/WebsiteSettingsService';
 import { NotificationService } from '../notification/NotificationService';
-import { notificationMessages } from '../../i18n/notification-messages';
+import { notificationMessages, NotificationCopy } from '../../i18n/notification-messages';
 import { convertSarToYer, normalizeAccountNumber } from '../../utils/convertSarToYer';
-import { paymentVerifyDebug } from '../../utils/paymentVerifyDebug';
+import { AutoVerifyStatus } from '../../models/Payment';
 import { PaymentProvider } from '../../models/PaymentProvider';
 import { PaymentSmsEvent } from '../../models/PaymentSmsEvent';
 
@@ -23,7 +23,12 @@ export interface PendingVerification {
   createdAt: string;
 }
 
-const DEFAULT_TTL_SEC = 3600;
+type AutoVerifyFailureReason = Extract<
+  AutoVerifyStatus,
+  'parse_failed' | 'match_failed' | 'verify_expired' | 'amount_insufficient' | 'account_mismatch'
+>;
+
+const DEFAULT_TTL_SEC = 900;
 
 @injectable()
 export class PaymentVerificationService {
@@ -90,26 +95,27 @@ export class PaymentVerificationService {
     await this.tryMatchPendingOrder(input.orderId);
   }
 
+  async processExpiredVerifications(): Promise<void> {
+    const cutoff = new Date(Date.now() - this.ttlSec * 1000);
+    const payments = await this.paymentRepo.findPendingAutoVerifySubmittedBefore(cutoff);
+
+    for (const payment of payments) {
+      const pending = await this.getPendingVerification(payment.order_id);
+      if (pending) {
+        await this.clearPendingVerification(pending.orderId, pending.account, pending.amountYer);
+      }
+      await this.notifyAutoVerifyFailed(payment.order_id, payment.id, 'verify_expired');
+    }
+  }
+
   async processSmsEvent(eventId: string): Promise<void> {
     const event = await this.paymentBridgeRepo.findSmsEventById(eventId);
     if (!event || event.matched_order_id) {
-      paymentVerifyDebug('process_sms_skip', {
-        eventId,
-        reason: !event ? 'not_found' : 'already_matched',
-      });
       return;
     }
 
-    paymentVerifyDebug('process_sms_start', {
-      eventId,
-      walletProvider: event.provider,
-      rawMessage: event.raw_message,
-      receivedAt: event.received_at.toISOString(),
-    });
-
     const parseResult = await this.parserService.parseWithFallback(event.raw_message);
     if (!parseResult.success || !parseResult.data) {
-      paymentVerifyDebug('parse_failed', { eventId, method: parseResult.method });
       await this.paymentBridgeRepo.updateSmsEventParsed(eventId, {
         parse_method: 'failed',
         parse_status: 'failed',
@@ -129,16 +135,6 @@ export class PaymentVerificationService {
       parse_status: 'parsed',
     });
 
-    paymentVerifyDebug('parse_success', {
-      eventId,
-      walletProvider: event.provider,
-      parsedProvider: parseResult.data.provider,
-      parsedAmount: parseResult.data.amount,
-      parsedAccount: normalizeAccountNumber(parseResult.data.account_number),
-      parsedSender: parseResult.data.sender ?? null,
-      method: parseResult.method,
-    });
-
     const updated = await this.paymentBridgeRepo.findSmsEventById(eventId);
     if (updated) {
       await this.tryMatchSmsEvent(updated, parseResult.data);
@@ -154,6 +150,7 @@ export class PaymentVerificationService {
     const since = new Date(Date.now() - this.ttlSec * 1000);
     const pendingCreatedAt = new Date(pending.createdAt).getTime();
     const events = await this.paymentBridgeRepo.findRecentUnmatchedSmsEvents(since, 'ASC');
+    const providers = await this.paymentBridgeRepo.listActiveProviders();
 
     let sawUnparseableSms = false;
 
@@ -192,6 +189,17 @@ export class PaymentVerificationService {
 
       if (!parsed) continue;
 
+      const providerForMatch = event.provider.trim() || parsed.provider;
+      if (!this.providerMatches(providerForMatch, providers)) {
+        continue;
+      }
+
+      const mismatch = this.detectVerificationMismatch(pending, parsed);
+      if (mismatch) {
+        await this.notifyAutoVerifyFailed(orderId, pending.paymentId, mismatch);
+        continue;
+      }
+
       const matched = await this.attemptMatch(orderId, pending, event.id, parsed, event.provider);
       if (matched) return;
     }
@@ -202,12 +210,8 @@ export class PaymentVerificationService {
       && payment?.status === 'pending'
       && payment.auto_verify_status === 'pending'
     ) {
-      paymentVerifyDebug('try_match_order_notify_parse_failed', { orderId, paymentId: pending.paymentId });
       await this.notifyAutoVerifyFailed(orderId, pending.paymentId, 'parse_failed');
-      return;
     }
-
-    paymentVerifyDebug('try_match_order_no_match', { orderId });
   }
 
   private async tryMatchSmsEvent(event: PaymentSmsEvent, parsed: ParsedPaymentSms): Promise<void> {
@@ -231,7 +235,58 @@ export class PaymentVerificationService {
       if (matched) return;
     }
 
-    paymentVerifyDebug('try_match_sms_no_pending', { smsEventId: event.id, account, amountYer });
+    await this.notifyCrossQueueMismatches(event, parsed);
+  }
+
+  private async notifyCrossQueueMismatches(event: PaymentSmsEvent, parsed: ParsedPaymentSms): Promise<void> {
+    const providers = await this.paymentBridgeRepo.listActiveProviders();
+    const providerForMatch = event.provider.trim() || parsed.provider;
+    if (!this.providerMatches(providerForMatch, providers)) {
+      return;
+    }
+
+    const smsAccount = normalizeAccountNumber(parsed.account_number);
+    const smsAmountYer = Math.floor(parsed.amount);
+    const smsReceivedAt = event.received_at.getTime();
+    const pendingOrders = await this.listPendingVerifications();
+
+    for (const pending of pendingOrders) {
+      if (smsReceivedAt < new Date(pending.createdAt).getTime()) {
+        continue;
+      }
+
+      const mismatch = this.detectVerificationMismatch(pending, parsed);
+      if (!mismatch) {
+        continue;
+      }
+
+      if (mismatch === 'account_mismatch' && smsAmountYer !== pending.amountYer) {
+        continue;
+      }
+      if (mismatch === 'amount_insufficient' && smsAccount !== pending.account) {
+        continue;
+      }
+
+      await this.notifyAutoVerifyFailed(pending.orderId, pending.paymentId, mismatch);
+    }
+  }
+
+  private detectVerificationMismatch(
+    pending: PendingVerification,
+    parsed: ParsedPaymentSms,
+  ): AutoVerifyFailureReason | null {
+    const account = normalizeAccountNumber(parsed.account_number);
+    const amountYer = Math.floor(parsed.amount);
+
+    if (account !== pending.account && amountYer === pending.amountYer) {
+      return 'account_mismatch';
+    }
+
+    if (account === pending.account && amountYer < pending.amountYer) {
+      return 'amount_insufficient';
+    }
+
+    return null;
   }
 
   private async attemptMatch(
@@ -268,7 +323,6 @@ export class PaymentVerificationService {
       await AppDataSource.transaction(async (manager) => {
         const claimed = await this.paymentBridgeRepo.claimSmsEventForOrder(smsEventId, orderId, manager);
         if (!claimed) {
-          paymentVerifyDebug('attempt_match_claim_failed', { smsEventId, orderId });
           return;
         }
 
@@ -281,7 +335,6 @@ export class PaymentVerificationService {
         approved = true;
       });
     } catch {
-      paymentVerifyDebug('attempt_match_approve_failed', { smsEventId, orderId, paymentId: payment.id });
       return false;
     }
 
@@ -289,7 +342,6 @@ export class PaymentVerificationService {
       return false;
     }
 
-    paymentVerifyDebug('attempt_match_success', { smsEventId, orderId, paymentId: payment.id });
     await this.clearPendingVerification(orderId, pending.account, pending.amountYer);
     await this.notifyPaymentApproved(orderId);
     return true;
@@ -343,10 +395,25 @@ export class PaymentVerificationService {
     }
   }
 
+  private notificationCopyForReason(orderNumber: string, reason: AutoVerifyFailureReason): NotificationCopy {
+    switch (reason) {
+      case 'verify_expired':
+        return notificationMessages.autoVerifyExpired(orderNumber);
+      case 'amount_insufficient':
+        return notificationMessages.autoVerifyAmountInsufficient(orderNumber);
+      case 'account_mismatch':
+        return notificationMessages.autoVerifyAccountMismatch(orderNumber);
+      case 'parse_failed':
+      case 'match_failed':
+      default:
+        return notificationMessages.autoVerifyFailed(orderNumber);
+    }
+  }
+
   private async notifyAutoVerifyFailed(
     orderId: string,
     paymentId: string,
-    status: 'parse_failed' | 'match_failed',
+    reason: AutoVerifyFailureReason,
   ): Promise<void> {
     const order = await this.orderRepo.findById(orderId);
     if (!order) return;
@@ -355,9 +422,9 @@ export class PaymentVerificationService {
     if (!payment || payment.status !== 'pending') return;
     if (payment.auto_verify_status !== 'pending') return;
 
-    await this.paymentRepo.updateAutoVerifyFields(paymentId, { auto_verify_status: status });
+    await this.paymentRepo.updateAutoVerifyFields(paymentId, { auto_verify_status: reason });
 
-    const copy = notificationMessages.autoVerifyFailed(order.order_number);
+    const copy = this.notificationCopyForReason(order.order_number, reason);
     void this.notificationService.notifyCustomer({
       customerId: order.customer_id,
       type: copy.type,
@@ -366,15 +433,13 @@ export class PaymentVerificationService {
       relatedOrderId: order.id,
     });
 
-    if (status === 'parse_failed') {
-      const staff = notificationMessages.staffPaymentSubmitted(order.order_number);
-      void this.notificationService.notifyStaff({
-        type: staff.type,
-        title: staff.title,
-        message: staff.message,
-        relatedOrderId: order.id,
-      });
-    }
+    const staff = notificationMessages.staffPaymentSubmitted(order.order_number);
+    void this.notificationService.notifyStaff({
+      type: staff.type,
+      title: staff.title,
+      message: staff.message,
+      relatedOrderId: order.id,
+    });
   }
 
   private async getPendingVerification(orderId: string): Promise<PendingVerification | null> {

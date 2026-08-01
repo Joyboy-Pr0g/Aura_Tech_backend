@@ -8,7 +8,14 @@ import { User } from './User';
 import { PaymentMethod } from './PaymentMethod';
 
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'refunded' | 'manual_approved';
-export type AutoVerifyStatus = 'pending' | 'matched' | 'parse_failed' | 'match_failed';
+export type AutoVerifyStatus =
+  | 'pending'
+  | 'matched'
+  | 'parse_failed'
+  | 'match_failed'
+  | 'verify_expired'
+  | 'amount_insufficient'
+  | 'account_mismatch';
 
 @Entity('payments')
 export class Payment {

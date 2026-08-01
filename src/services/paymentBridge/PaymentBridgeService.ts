@@ -8,7 +8,6 @@ import { PaymentDevice } from '../../models/PaymentDevice';
 import { PaymentProvider } from '../../models/PaymentProvider';
 import { PaymentSmsEvent } from '../../models/PaymentSmsEvent';
 import { PaymentVerificationService } from './PaymentVerificationService';
-import { paymentVerifyDebug } from '../../utils/paymentVerifyDebug';
 
 @injectable()
 export class PaymentBridgeService {
@@ -110,15 +109,6 @@ export class PaymentBridgeService {
       sender_address: payload.senderAddress.trim(),
       raw_message: payload.rawMessage,
       received_at: receivedAt,
-    });
-
-    paymentVerifyDebug('sms_ingested', {
-      eventId: event.id,
-      deviceId,
-      walletProvider: event.provider,
-      senderAddress: event.sender_address,
-      receivedAt: event.received_at.toISOString(),
-      rawMessage: event.raw_message,
     });
 
     void this.verificationService.processSmsEvent(event.id).catch((error) => {

@@ -2,14 +2,19 @@ import cron from 'node-cron';
 import { container } from '../di/container';
 import { TrendingService } from '../services/trending/TrendingService';
 import { NotificationService } from '../services/notification/NotificationService';
+import { PaymentVerificationService } from '../services/paymentBridge/PaymentVerificationService';
 
 export function startScheduledJobs(): void {
   const trendingService = container.resolve(TrendingService);
   const notificationService = container.resolve(NotificationService);
+  const paymentVerificationService = container.resolve(PaymentVerificationService);
 
   cron.schedule('0 1 * * *', () => {
+    console.time('Calculating trending.....');
     void trendingService.calculateTrending().catch((err) => {
       console.error('Trending calculation failed:', err);
+    }).finally(() => {
+      console.timeEnd('Calculating trending.....');
     });
   });
 
@@ -25,5 +30,11 @@ export function startScheduledJobs(): void {
     });
   });
 
-  console.log('   Cron     : trending (1 AM), notifications (5 min), reminders (hourly)');
+  cron.schedule('* * * * *', () => {
+    void paymentVerificationService.processExpiredVerifications().catch((err) => {
+      console.error('Payment verify expiry job failed:', err);
+    });
+  });
+
+  console.log('   Cron     : trending (1 AM), notifications (5 min), reminders (hourly), payment verify expiry (1 min)');
 }

@@ -36,6 +36,8 @@ export interface IPaymentRepository {
     },
   ): Promise<void>;
 
+  findPendingAutoVerifySubmittedBefore(cutoff: Date): Promise<Payment[]>;
+
   findAllMethods(): Promise<PaymentMethod[]>;
   findMethodById(id: string): Promise<PaymentMethod | null>;
   createMethod(dto: {

@@ -75,8 +75,32 @@ export const notificationMessages = {
   autoVerifyFailed(orderNumber: string): NotificationCopy {
     return {
       type: 'payment_rejected',
-      title: 'تعذر التحقق التلقائي من الدفع',
-      message: `تعذر التحقق التلقائي من دفعتك للطلب ${orderNumber}، لكن طلبك مسجل وسيراجعه فريقنا خلال 24 ساعة.`,
+      title: 'تعذّر التحقق التلقائي من الدفع',
+      message: `تعذّر التحقق التلقائي من دفعتك للطلب ${orderNumber}، لكن لا داعي للقلق — سيراجع فريقنا طلبك والدفع خلال 24 ساعة.`,
+    };
+  },
+
+  autoVerifyExpired(orderNumber: string): NotificationCopy {
+    return {
+      type: 'payment_rejected',
+      title: 'انتهت مدة التحقق التلقائي',
+      message: `انتهت مدة التحقق التلقائي من الدفع للطلب ${orderNumber}. طلبك ما زال مسجلاً — يرجى انتظار مراجعة الإدارة واعتماد الدفع يدوياً.`,
+    };
+  },
+
+  autoVerifyAmountInsufficient(orderNumber: string): NotificationCopy {
+    return {
+      type: 'payment_rejected',
+      title: 'المبلغ المحوّل غير كافٍ',
+      message: `المبلغ المحوّل للطلب ${orderNumber} أقل من المطلوب. تواصل مع الإدارة لاستكمال المتبقي واعتماد طلبك.`,
+    };
+  },
+
+  autoVerifyAccountMismatch(orderNumber: string): NotificationCopy {
+    return {
+      type: 'payment_rejected',
+      title: 'رقم الحساب غير متطابق',
+      message: `رقم حساب المرسل لا يطابق الرقم الذي أدخلته للطلب ${orderNumber}. يرجى التأكد من البيانات أو التواصل مع الإدارة.`,
     };
   },
 
