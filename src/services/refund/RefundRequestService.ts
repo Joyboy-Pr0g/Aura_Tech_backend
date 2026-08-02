@@ -10,6 +10,7 @@ import { uploadToCloudinary } from '../../config/cloudinary';
 import { logAdminAction } from '../../utils/logAdminAction';
 import { NotificationService } from '../notification/NotificationService';
 import { notificationMessages } from '../../i18n/notification-messages';
+import { UserActivityMonitorService } from '../security/UserActivityMonitorService';
 
 const REFUND_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -19,6 +20,7 @@ export class RefundRequestService {
     @inject(REPOSITORY_TOKENS.IRefundRequestRepository) private refundRepo: IRefundRequestRepository,
     @inject(REPOSITORY_TOKENS.IOrderRepository) private orderRepo: IOrderRepository,
     @inject(NotificationService) private notificationService: NotificationService,
+    @inject(UserActivityMonitorService) private activityMonitor: UserActivityMonitorService,
   ) {}
 
   async getForCustomerOrder(customerId: string, orderNumber: string): Promise<RefundRequest | null> {
@@ -84,6 +86,8 @@ export class RefundRequestService {
       message: staffRefund.message,
       relatedOrderId: order.id,
     });
+
+    void this.activityMonitor.recordActivity(customerId, 'refund_requested');
 
     return request;
   }

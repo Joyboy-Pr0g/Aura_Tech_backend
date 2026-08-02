@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { AuthService } from '../../services/auth/AuthService';
 import { APIResponse } from '../../core/responses/api-response';
 import { getErrorStatusCode } from '../../core/responses/controller-error-status';
+import { getRequestIp } from '../../utils/authRateLimit';
 
 @injectable()
 export class AuthController {
@@ -91,7 +92,10 @@ export class AuthController {
 
   async sendRegistrationEmailVerificationCode(req: Request, res: Response): Promise<void> {
     try {
-      await this.authService.sendRegistrationEmailVerificationCode(req.validatedData.email);
+      await this.authService.sendRegistrationEmailVerificationCode(
+        req.validatedData.email,
+        getRequestIp(req),
+      );
       res.status(200).json(APIResponse.success('Verification code sent'));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(
@@ -103,7 +107,7 @@ export class AuthController {
   async verifyRegistrationEmailCode(req: Request, res: Response): Promise<void> {
     try {
       const { email, code } = req.validatedData;
-      await this.authService.verifyRegistrationEmailCode(email, code);
+      await this.authService.verifyRegistrationEmailCode(email, code, getRequestIp(req));
       res.status(200).json(APIResponse.success('Email verified successfully'));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(
@@ -114,7 +118,7 @@ export class AuthController {
 
   async forgotPassword(req: Request, res: Response): Promise<void> {
     try {
-      await this.authService.requestPasswordReset(req.validatedData.email);
+      await this.authService.requestPasswordReset(req.validatedData.email, getRequestIp(req));
       res.status(200).json(APIResponse.success('If an account exists for this email, a new password has been sent'));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(
@@ -125,7 +129,11 @@ export class AuthController {
 
   async sendEmailVerificationCode(req: Request, res: Response): Promise<void> {
     try {
-      await this.authService.sendEmailVerificationCode(req.user!.id, req.validatedData.email);
+      await this.authService.sendEmailVerificationCode(
+        req.user!.id,
+        req.validatedData.email,
+        getRequestIp(req),
+      );
       res.status(200).json(APIResponse.success('Verification code sent'));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(
@@ -137,7 +145,7 @@ export class AuthController {
   async verifyEmailChangeCode(req: Request, res: Response): Promise<void> {
     try {
       const { email, code } = req.validatedData;
-      await this.authService.verifyEmailChangeCode(req.user!.id, email, code);
+      await this.authService.verifyEmailChangeCode(req.user!.id, email, code, getRequestIp(req));
       res.status(200).json(APIResponse.success('Email verified successfully'));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(

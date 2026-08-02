@@ -19,4 +19,5 @@ export const REPOSITORY_TOKENS = {
   IRefundRequestRepository: 'IRefundRequestRepository',
   IExpenseRepository: 'IExpenseRepository',
   IPaymentBridgeRepository: 'IPaymentBridgeRepository',
+  ISuspiciousUserRepository: 'ISuspiciousUserRepository',
 } as const;

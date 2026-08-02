@@ -178,6 +178,20 @@ const EXACT: Record<string, string> = {
   'Phone number is already registered': 'رقم الهاتف مسجل بالفعل',
   'Verification code expired or not found. Please request a new one.': 'انتهت صلاحية رمز التحقق أو غير موجود. اطلب رمزاً جديداً.',
   'Verification service temporarily unavailable': 'خدمة التحقق غير متاحة مؤقتاً',
+  'Please wait before requesting another code.': 'يرجى الانتظار قبل طلب رمز جديد.',
+  'Too many requests for this email. Please try again later.': 'طلبات كثيرة جداً لهذا البريد. يرجى المحاولة لاحقاً.',
+  'Too many requests from your network. Please try again later.': 'طلبات كثيرة جداً من شبكتك. يرجى المحاولة لاحقاً.',
+  'Too many different emails requested from your network. Please try again later.':
+    'تم طلب عدد كبير من عناوين بريد مختلفة من شبكتك. يرجى المحاولة لاحقاً.',
+  'Too many failed attempts. Please request a new verification code.':
+    'محاولات فاشلة كثيرة. يرجى طلب رمز تحقق جديد.',
+  'Too many verification attempts from your network. Please try again later.':
+    'محاولات تحقق كثيرة جداً من شبكتك. يرجى المحاولة لاحقاً.',
+  'Too many verification requests. Please try again later.': 'طلبات تحقق كثيرة جداً. يرجى المحاولة لاحقاً.',
+  'Too many verification attempts. Please try again later.': 'محاولات تحقق كثيرة جداً. يرجى المحاولة لاحقاً.',
+  'Too many password reset requests. Please try again later.': 'طلبات إعادة تعيين كلمة مرور كثيرة جداً. يرجى المحاولة لاحقاً.',
+  'Too many auth requests, please try again in 15 minutes.': 'طلبات مصادقة كثيرة جداً، يرجى المحاولة بعد 15 دقيقة.',
+  'Too many requests, please try again later.': 'طلبات كثيرة جداً، يرجى المحاولة لاحقاً.',
   'Your account has been blocked. Contact support.': 'تم حظر حسابك. تواصل مع الدعم.',
   'Can not use this coupon again': 'لا يمكن استخدام هذا الكوبون مرة أخرى',
   'Blog not found': 'المقال غير موجود',
@@ -226,6 +240,12 @@ const EXACT: Record<string, string> = {
   'Payment event received': 'تم استلام حدث الدفع',
   'Provider not found': 'مزود الدفع غير موجود',
   'Invalid receivedAt timestamp': 'وقت الاستلام غير صالح',
+  'Suspicious users fetched': 'تم جلب المستخدمين المشبوهين',
+  'Suspicious user report dismissed': 'تم تجاهل تقرير المستخدم المشبوه',
+  'User blocked from suspicious activity report': 'تم حظر المستخدم من تقرير النشاط المشبوه',
+  'User deleted from suspicious activity report': 'تم حذف المستخدم من تقرير النشاط المشبوه',
+  'Suspicious user report not found': 'تقرير المستخدم المشبوه غير موجود',
+  'This suspicious user report has already been reviewed': 'تمت مراجعة تقرير المستخدم المشبوه مسبقاً',
   'provider, senderAddress, and rawMessage are required': 'provider و senderAddress و rawMessage مطلوبة',
 };
 

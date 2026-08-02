@@ -17,6 +17,7 @@ import { NotificationService } from '../notification/NotificationService';
 import { notificationMessages } from '../../i18n/notification-messages';
 import { IInventoryRepository } from '../../interfaces/repositories/IInventoryRepository';
 import { logAdminAction } from '../../utils/logAdminAction';
+import { UserActivityMonitorService } from '../security/UserActivityMonitorService';
 
 @injectable()
 export class OrderService {
@@ -29,6 +30,7 @@ export class OrderService {
     @inject(REPOSITORY_TOKENS.ICouponRepository) private couponRepo: ICouponRepository,
     @inject(NotificationService) private notificationService: NotificationService,
     @inject(REPOSITORY_TOKENS.IInventoryRepository) private inventoryRepo: IInventoryRepository,
+    @inject(UserActivityMonitorService) private activityMonitor: UserActivityMonitorService,
   ) {}
 
   async createFromCart(
@@ -207,6 +209,8 @@ export class OrderService {
       relatedOrderId: order.savedOrder.id,
     });
 
+    void this.activityMonitor.recordActivity(customerId, 'order_placed');
+
     const fullOrder = await this.orderRepo.findById(order.savedOrder.id);
     return fullOrder ?? order.savedOrder;
   }
@@ -274,6 +278,7 @@ export class OrderService {
 
     if (newStatus === 'cancelled') {
       await this.releaseReservedStock(order);
+      void this.activityMonitor.recordActivity(order.customer_id, 'order_cancelled');
     }
 
     void this.notifyCustomerOfStatusChange(order, previous, newStatus, reason);

@@ -1,4 +1,4 @@
-import { injectable, inject } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import { AdminAnalyticsService } from './AdminAnalyticsService';
 import { IProductRepository } from '../../interfaces/repositories/IProductRepository';
 import { IOrderRepository } from '../../interfaces/repositories/IOrderRepository';
@@ -6,6 +6,7 @@ import { IAuthRepository } from '../../interfaces/repositories/IAuthRepository';
 import { IPaymentRepository } from '../../interfaces/repositories/IPaymentRepository';
 import { REPOSITORY_TOKENS } from '../../di/repository.tokens';
 import { AppDataSource } from '../../config/database';
+import { AdminSuspiciousUserService } from './AdminSuspiciousUserService';
 
 @injectable()
 export class AdminDashboardService {
@@ -15,6 +16,7 @@ export class AdminDashboardService {
         @inject(REPOSITORY_TOKENS.IOrderRepository) private orderRepo: IOrderRepository,
         @inject(REPOSITORY_TOKENS.IAuthRepository) private authRepo: IAuthRepository,
         @inject(REPOSITORY_TOKENS.IPaymentRepository) private paymentRepo: IPaymentRepository,
+        @inject(AdminSuspiciousUserService) private suspiciousUserService: AdminSuspiciousUserService,
     ) { }
 
     async getNavBadges() {
@@ -30,11 +32,13 @@ export class AdminDashboardService {
                (SELECT COUNT(*)::int FROM refund_requests WHERE status = 'pending') AS pending_refunds`,
         );
         const row = rows[0] ?? {};
+        const suspicious_users = await this.suspiciousUserService.countOpenReports();
         return {
             pending_orders: Number(row.pending_orders ?? 0),
             pending_payments: Number(row.pending_payments ?? 0),
             unanswered_questions: Number(row.unanswered_questions ?? 0),
             pending_refunds: Number(row.pending_refunds ?? 0),
+            suspicious_users,
         };
     }
 

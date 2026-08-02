@@ -22,6 +22,7 @@ import { InventoryRepository } from '../repositories/inventory/InventoryReposito
 import { RefundRequestRepository } from '../repositories/refund/RefundRequestRepository';
 import { ExpenseRepository } from '../repositories/expense/ExpenseRepository';
 import { PaymentBridgeRepository } from '../repositories/paymentBridge/PaymentBridgeRepository';
+import { SuspiciousUserRepository } from '../repositories/suspicious/SuspiciousUserRepository';
 
 // Services
 import { AuthService } from '../services/auth/AuthService';
@@ -52,6 +53,8 @@ import { PaymentBridgeService } from '../services/paymentBridge/PaymentBridgeSer
 import { PaymentSmsParserService } from '../services/paymentBridge/PaymentSmsParserService';
 import { PaymentVerificationService } from '../services/paymentBridge/PaymentVerificationService';
 import { PaymentDeviceAuthService } from '../middleware/paymentDeviceAuth';
+import { UserActivityMonitorService } from '../services/security/UserActivityMonitorService';
+import { AdminSuspiciousUserService } from '../services/admin/AdminSuspiciousUserService';
 
 // Controllers
 import { AuthController } from '../controllers/auth/AuthController';
@@ -87,6 +90,7 @@ import { RefundRequestController, AdminRefundRequestController } from '../contro
 import { AdminExpenseController } from '../controllers/expense/AdminExpenseController';
 import { PaymentBridgeController } from '../controllers/paymentBridge/PaymentBridgeController';
 import { AdminPaymentBridgeController } from '../controllers/paymentBridge/AdminPaymentBridgeController';
+import { AdminSuspiciousUserController } from '../controllers/admin/Admin.SuspiciousUserController';
 
 export function registerDependencies(): void {
   // ─── Repositories ────────────────────────────────────────────────────────
@@ -110,6 +114,7 @@ export function registerDependencies(): void {
   container.registerSingleton(REPOSITORY_TOKENS.IRefundRequestRepository, RefundRequestRepository);
   container.registerSingleton(REPOSITORY_TOKENS.IExpenseRepository, ExpenseRepository);
   container.registerSingleton(REPOSITORY_TOKENS.IPaymentBridgeRepository, PaymentBridgeRepository);
+  container.registerSingleton(REPOSITORY_TOKENS.ISuspiciousUserRepository, SuspiciousUserRepository);
 
   // ─── Services ────────────────────────────────────────────────────────────
   container.registerSingleton(AuthService, AuthService);
@@ -139,6 +144,8 @@ export function registerDependencies(): void {
   container.registerSingleton(PaymentBridgeService, PaymentBridgeService);
   container.registerSingleton(PaymentSmsParserService, PaymentSmsParserService);
   container.registerSingleton(PaymentVerificationService, PaymentVerificationService);
+  container.registerSingleton(UserActivityMonitorService, UserActivityMonitorService);
+  container.registerSingleton(AdminSuspiciousUserService, AdminSuspiciousUserService);
   container.registerSingleton(PaymentDeviceAuthService, PaymentDeviceAuthService);
 
   // ─── Controllers ─────────────────────────────────────────────────────────
@@ -176,4 +183,5 @@ export function registerDependencies(): void {
   container.registerSingleton(AdminExpenseController, AdminExpenseController);
   container.registerSingleton(PaymentBridgeController, PaymentBridgeController);
   container.registerSingleton(AdminPaymentBridgeController, AdminPaymentBridgeController);
+  container.registerSingleton(AdminSuspiciousUserController, AdminSuspiciousUserController);
 }

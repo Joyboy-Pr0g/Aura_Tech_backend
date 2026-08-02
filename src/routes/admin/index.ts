@@ -14,6 +14,7 @@ import actionLogRoutes from './actionLog.route';
 import refundRequestRoutes from './refundRequest.route';
 import expenseRoutes from './expense.route';
 import paymentBridgeAdminRoutes from './paymentBridge.route';
+import suspiciousUserRoutes from './suspiciousUser.route';
 import { AdminDashboardController } from '../../controllers/admin/index';
 import { protect } from '../../middleware/auth';
 import { authorize } from '../../middleware/rbac';
@@ -41,5 +42,6 @@ router.use('/action-logs', actionLogRoutes);
 router.use('/refund-requests', refundRequestRoutes);
 router.use('/expenses', expenseRoutes);
 router.use('/payment-bridge', paymentBridgeAdminRoutes);
+router.use('/suspicious-users', suspiciousUserRoutes);
 
 export default router;

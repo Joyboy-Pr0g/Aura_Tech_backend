@@ -9,6 +9,15 @@ import { Role, UserStatus } from '../../types/rbac';
 import { User } from '../../models/User';
 import { generateVerificationCode } from '../../utils/verificationCode';
 import { sendEmailChangeVerificationCode, sendEmailVerificationCode, sendPasswordResetEmail } from '../mail/emailService';
+import {
+  assertCanSendEmailCode,
+  assertCanVerifyCode,
+  clearVerifyFailures,
+  recordEmailCodeSent,
+  recordVerifyAttempt,
+  recordVerifyFailure,
+} from '../../utils/authRateLimit';
+import { UserActivityMonitorService } from '../security/UserActivityMonitorService';
 
 const EMAIL_CODE_TTL_SEC = 15 * 60;
 const EMAIL_VERIFIED_TTL_SEC = 30 * 60;
@@ -33,6 +42,8 @@ export class AuthService {
   constructor(
     @inject(REPOSITORY_TOKENS.IAuthRepository)
     private authRepo: IAuthRepository,
+    @inject(UserActivityMonitorService)
+    private activityMonitor: UserActivityMonitorService,
   ) { }
 
   private async assertRedisAvailable(): Promise<void> {
@@ -44,7 +55,7 @@ export class AuthService {
     }
   }
 
-  async sendEmailVerificationCode(userId: string, email: string): Promise<void> {
+  async sendEmailVerificationCode(userId: string, email: string, clientIp?: string): Promise<void> {
     const user = await this.authRepo.findById(userId);
     if (!user || user.deleted_at) throw new AppError(404, 'User not found');
 
@@ -59,6 +70,7 @@ export class AuthService {
     }
 
     await this.assertRedisAvailable();
+    await assertCanSendEmailCode('profile_email_send', normalizedEmail, clientIp ?? 'unknown');
 
     const code = generateVerificationCode();
     const redis = getRedisClient();
@@ -72,9 +84,11 @@ export class AuthService {
     if (!sent) {
       throw new AppError(500, 'Failed to send verification email');
     }
+
+    await recordEmailCodeSent('profile_email_send', normalizedEmail, clientIp ?? 'unknown');
   }
 
-  async verifyEmailChangeCode(userId: string, email: string, code: string): Promise<void> {
+  async verifyEmailChangeCode(userId: string, email: string, code: string, clientIp?: string): Promise<void> {
     const user = await this.authRepo.findById(userId);
     if (!user || user.deleted_at) throw new AppError(404, 'User not found');
 
@@ -84,6 +98,8 @@ export class AuthService {
     }
 
     await this.assertRedisAvailable();
+    await assertCanVerifyCode('profile_email_verify', normalizedEmail, clientIp ?? 'unknown');
+    await recordVerifyAttempt('profile_email_verify', normalizedEmail, clientIp ?? 'unknown');
 
     const redis = getRedisClient();
     const codeKey = emailChangeCodeKey(userId, normalizedEmail);
@@ -94,12 +110,17 @@ export class AuthService {
     }
 
     if (storedCode !== code.trim()) {
+      const locked = await recordVerifyFailure('profile_email_verify', normalizedEmail);
+      if (locked) {
+        await redis.del(codeKey);
+      }
       throw new AppError(400, 'Invalid verification code');
     }
 
     const verifiedKey = emailChangeVerifiedKey(userId, normalizedEmail);
     await redis.set(verifiedKey, '1', 'EX', EMAIL_VERIFIED_TTL_SEC);
     await redis.del(codeKey);
+    await clearVerifyFailures('profile_email_verify', normalizedEmail);
   }
 
   private async isEmailChangeVerified(userId: string, email: string): Promise<boolean> {
@@ -121,7 +142,7 @@ export class AuthService {
     }
   }
 
-  async sendRegistrationEmailVerificationCode(email: string): Promise<void> {
+  async sendRegistrationEmailVerificationCode(email: string, clientIp?: string): Promise<void> {
     const normalizedEmail = email.toLowerCase().trim();
 
     if (await this.authRepo.existsByEmail(normalizedEmail)) {
@@ -129,6 +150,7 @@ export class AuthService {
     }
 
     await this.assertRedisAvailable();
+    await assertCanSendEmailCode('reg_email_send', normalizedEmail, clientIp ?? 'unknown');
 
     const code = generateVerificationCode();
     const redis = getRedisClient();
@@ -143,9 +165,11 @@ export class AuthService {
     if (!sent) {
       throw new AppError(500, 'Failed to send verification email');
     }
+
+    await recordEmailCodeSent('reg_email_send', normalizedEmail, clientIp ?? 'unknown');
   }
 
-  async verifyRegistrationEmailCode(email: string, code: string): Promise<void> {
+  async verifyRegistrationEmailCode(email: string, code: string, clientIp?: string): Promise<void> {
     const normalizedEmail = email.toLowerCase().trim();
 
     if (await this.authRepo.existsByEmail(normalizedEmail)) {
@@ -153,6 +177,8 @@ export class AuthService {
     }
 
     await this.assertRedisAvailable();
+    await assertCanVerifyCode('reg_email_verify', normalizedEmail, clientIp ?? 'unknown');
+    await recordVerifyAttempt('reg_email_verify', normalizedEmail, clientIp ?? 'unknown');
 
     const redis = getRedisClient();
     const codeKey = registrationCodeKey(normalizedEmail);
@@ -163,12 +189,17 @@ export class AuthService {
     }
 
     if (storedCode !== code.trim()) {
+      const locked = await recordVerifyFailure('reg_email_verify', normalizedEmail);
+      if (locked) {
+        await redis.del(codeKey);
+      }
       throw new AppError(400, 'Invalid verification code');
     }
 
     const verifiedKey = registrationVerifiedKey(normalizedEmail);
     await redis.set(verifiedKey, '1', 'EX', EMAIL_VERIFIED_TTL_SEC);
     await redis.del(codeKey);
+    await clearVerifyFailures('reg_email_verify', normalizedEmail);
   }
 
   private async isRegistrationEmailVerified(email: string): Promise<boolean> {
@@ -310,6 +341,7 @@ export class AuthService {
       await this.clearEmailChangeVerified(userId, normalizedEmail);
     }
 
+    void this.activityMonitor.recordActivity(userId, 'profile_update');
     return this.sanitize(updated);
   }
 
@@ -325,6 +357,7 @@ export class AuthService {
     }
 
     await this.authRepo.resetPassword(userId, await hashPassword(data.new_password));
+    void this.activityMonitor.recordActivity(userId, 'password_change');
   }
 
   async resetPassword(email: string, password: string): Promise<void> {
@@ -345,8 +378,10 @@ export class AuthService {
     }
   }
 
-  async requestPasswordReset(email: string): Promise<void> {
+  async requestPasswordReset(email: string, clientIp?: string): Promise<void> {
     const normalizedEmail = email.toLowerCase().trim();
+    await assertCanSendEmailCode('forgot_password', normalizedEmail, clientIp ?? 'unknown');
+
     const user = await this.authRepo.findByEmail(normalizedEmail);
 
     if (
@@ -355,11 +390,13 @@ export class AuthService {
       || user.role !== Role.CUSTOMER
       || user.status === UserStatus.BLOCKED
     ) {
+      await recordEmailCodeSent('forgot_password', normalizedEmail, clientIp ?? 'unknown');
       return;
     }
 
     const password = generatePassword();
     await this.resetPassword(normalizedEmail, password);
+    await recordEmailCodeSent('forgot_password', normalizedEmail, clientIp ?? 'unknown');
   }
 
   private sanitize(user: User): SafeUser {
