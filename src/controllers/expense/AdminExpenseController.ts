@@ -8,6 +8,15 @@ import { getErrorStatusCode } from '../../core/responses/controller-error-status
 export class AdminExpenseController {
   constructor(@inject(ExpenseService) private expenseService: ExpenseService) {}
 
+  totals = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.expenseService.getExpenseTotals(req.validatedData);
+      res.json(APIResponse.success('Expense totals fetched', data));
+    } catch (err) {
+      res.status(getErrorStatusCode(err)).json(APIResponse.error(err instanceof Error ? err.message : 'Failed'));
+    }
+  };
+
   list = async (req: Request, res: Response): Promise<void> => {
     try {
       const data = await this.expenseService.listExpenses(req.validatedData);
@@ -28,6 +37,20 @@ export class AdminExpenseController {
       }
       const data = await this.expenseService.createExpense(req.user!.id, req.validatedData, req.file);
       res.status(201).json(APIResponse.success('Expense recorded', data));
+    } catch (err) {
+      res.status(getErrorStatusCode(err)).json(APIResponse.error(err instanceof Error ? err.message : 'Failed'));
+    }
+  };
+
+  update = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await this.expenseService.updateExpense(
+        req.user!.id,
+        req.params.id,
+        req.validatedData,
+        req.file,
+      );
+      res.json(APIResponse.success('Expense updated', data));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error(err instanceof Error ? err.message : 'Failed'));
     }

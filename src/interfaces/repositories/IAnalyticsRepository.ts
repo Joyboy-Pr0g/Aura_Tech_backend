@@ -99,7 +99,7 @@ export interface DashboardAnalytics {
 export interface IAnalyticsRepository {
   getDashboardAnalytics(): Promise<DashboardAnalytics>;
   getRevenueByDay(fromDate: Date, toDate: Date): Promise<RevenueByDayRow[]>;
-  getTopProducts(limit: number): Promise<TopProductRow[]>;
+  getTopProducts(limit: number, range?: { fromDate: Date; toDate: Date }): Promise<TopProductRow[]>;
   getCustomerMetrics(): Promise<CustomerMetrics>;
   getTopCustomers(sort: 'lifetime_value' | 'order_count', limit: number): Promise<TopCustomerRow[]>;
   getInventoryStatus(): Promise<InventoryStatus>;

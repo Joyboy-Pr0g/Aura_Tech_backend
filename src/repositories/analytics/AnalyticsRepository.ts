@@ -142,7 +142,18 @@ export class AnalyticsRepository implements IAnalyticsRepository {
     }));
   }
 
-  async getTopProducts(limit: number): Promise<TopProductRow[]> {
+  async getTopProducts(limit: number, range?: { fromDate: Date; toDate: Date }): Promise<TopProductRow[]> {
+    const params: unknown[] = [CONFIRMED_STATUSES];
+    let dateClause = '';
+
+    if (range) {
+      params.push(range.fromDate, range.toDate);
+      dateClause = 'AND o.created_at >= $2 AND o.created_at <= $3';
+    }
+
+    params.push(limit);
+    const limitIndex = params.length;
+
     const rows = await AppDataSource.query(
       `SELECT p.id, p.title,
               COUNT(oi.id)::int AS sales,
@@ -151,10 +162,11 @@ export class AnalyticsRepository implements IAnalyticsRepository {
        JOIN order_items oi ON p.id = oi.product_id
        JOIN orders o ON o.id = oi.order_id
        WHERE o.status = ANY($1)
+         ${dateClause}
        GROUP BY p.id, p.title
        ORDER BY sales DESC
-       LIMIT $2`,
-      [CONFIRMED_STATUSES, limit],
+       LIMIT $${limitIndex}`,
+      params,
     );
     return rows.map((r: TopProductRow) => ({
       id: r.id,

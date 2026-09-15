@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { ANALYTICS_PERIODS } from '../utils/analyticsPeriod';
 
 export const deviceTokenSchema = Joi.object({
   token: Joi.string().min(10).max(500).required(),
@@ -47,13 +48,19 @@ export const logVisitSchema = Joi.object({
   referrer: Joi.string().max(500).optional().allow(null, ''),
 }).unknown(false);
 
-export const analyticsDateRangeSchema = Joi.object({
-  from_date: Joi.date().iso().required(),
-  to_date: Joi.date().iso().required(),
-}).unknown(false);
+export const analyticsPeriodSchema = Joi.object({
+  period: Joi.string().valid(...ANALYTICS_PERIODS).optional(),
+  from_date: Joi.date().iso().optional(),
+  to_date: Joi.date().iso().optional(),
+}).unknown(false).default({ period: 'this_month' });
+
+export const analyticsDateRangeSchema = analyticsPeriodSchema;
 
 export const analyticsLimitSchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100).default(20).optional(),
+  period: Joi.string().valid(...ANALYTICS_PERIODS).optional(),
+  from_date: Joi.date().iso().optional(),
+  to_date: Joi.date().iso().optional(),
 }).unknown(false);
 
 export const analyticsCustomersSchema = Joi.object({
@@ -77,21 +84,20 @@ export const inventoryLogsSchema = Joi.object({
 
 export const paymentHistorySchema = Joi.object({
   status: Joi.string().valid('pending', 'approved', 'rejected', 'refunded', 'manual_approved').optional(),
+  period: Joi.string().valid(...ANALYTICS_PERIODS).optional(),
   from_date: Joi.date().iso().optional(),
   to_date: Joi.date().iso().optional(),
   limit: Joi.number().integer().min(1).max(100).default(50).optional(),
-}).unknown(false);
+}).unknown(false).default({ period: 'this_month' });
 
-export const analyticsFinancialSchema = Joi.object({
-  from_date: Joi.date().iso().optional(),
-  to_date: Joi.date().iso().optional(),
-}).unknown(false);
+export const analyticsFinancialSchema = analyticsPeriodSchema;
 
 export const expenseHistorySchema = Joi.object({
+  period: Joi.string().valid(...ANALYTICS_PERIODS).optional(),
   from_date: Joi.date().iso().optional(),
   to_date: Joi.date().iso().optional(),
   limit: Joi.number().integer().min(1).max(100).default(50).optional(),
-}).unknown(false);
+}).unknown(false).default({ period: 'this_month' });
 
 export const latestActionLogsSchema = Joi.object({
   entity_type: Joi.string().valid('product', 'category', 'order', 'payment', 'coupon', 'blog', 'refund_request').required(),

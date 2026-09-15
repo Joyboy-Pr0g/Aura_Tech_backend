@@ -4,6 +4,7 @@ import { AdminAnalyticsService } from '../../services/admin/AdminAnalyticsServic
 import { AdminInventoryService } from '../../services/admin/AdminInventoryService';
 import { APIResponse } from '../../core/responses/api-response';
 import { getErrorStatusCode } from '../../core/responses/controller-error-status';
+import { AnalyticsPeriod } from '../../utils/analyticsPeriod';
 
 @injectable()
 export class AdminAnalyticsController {
@@ -11,6 +12,15 @@ export class AdminAnalyticsController {
     @inject(AdminAnalyticsService) private analyticsService: AdminAnalyticsService,
     @inject(AdminInventoryService) private inventoryService: AdminInventoryService,
   ) {}
+
+  private rangeFromRequest(req: Request) {
+    const { period, from_date, to_date } = req.validatedData ?? {};
+    return {
+      period: period as AnalyticsPeriod | undefined,
+      fromDate: from_date ? new Date(from_date) : undefined,
+      toDate: to_date ? new Date(to_date) : undefined,
+    };
+  }
 
   dashboard = async (_req: Request, res: Response): Promise<void> => {
     try {
@@ -23,8 +33,7 @@ export class AdminAnalyticsController {
 
   revenue = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { from_date, to_date } = req.validatedData;
-      const data = await this.analyticsService.getRevenue(new Date(from_date), new Date(to_date));
+      const data = await this.analyticsService.getRevenue(this.rangeFromRequest(req));
       res.json(APIResponse.success('Revenue analytics', data));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error(err instanceof Error ? err.message : 'Failed'));
@@ -33,7 +42,10 @@ export class AdminAnalyticsController {
 
   topProducts = async (req: Request, res: Response): Promise<void> => {
     try {
-      const data = await this.analyticsService.getTopProducts(req.validatedData.limit ?? 20);
+      const data = await this.analyticsService.getTopProducts(
+        req.validatedData.limit ?? 20,
+        this.rangeFromRequest(req),
+      );
       res.json(APIResponse.success('Top products', data));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error(err instanceof Error ? err.message : 'Failed'));
@@ -94,11 +106,11 @@ export class AdminAnalyticsController {
 
   paymentHistory = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { status, from_date, to_date, limit } = req.validatedData;
+      const { status, limit } = req.validatedData;
+      const range = this.rangeFromRequest(req);
       const data = await this.analyticsService.getPaymentHistory({
         status,
-        fromDate: from_date ? new Date(from_date) : undefined,
-        toDate: to_date ? new Date(to_date) : undefined,
+        ...range,
         limit: limit ?? 50,
       });
       res.json(APIResponse.success('Payment history', data));
@@ -109,11 +121,7 @@ export class AdminAnalyticsController {
 
   financial = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { from_date, to_date } = req.validatedData;
-      const data = await this.analyticsService.getFinancialSummary(
-        from_date ? new Date(from_date) : undefined,
-        to_date ? new Date(to_date) : undefined,
-      );
+      const data = await this.analyticsService.getFinancialSummary(this.rangeFromRequest(req));
       res.json(APIResponse.success('Financial summary', data));
     } catch (err) {
       res.status(getErrorStatusCode(err)).json(APIResponse.error(err instanceof Error ? err.message : 'Failed'));
@@ -122,10 +130,10 @@ export class AdminAnalyticsController {
 
   expensesHistory = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { from_date, to_date, limit } = req.validatedData;
+      const { limit } = req.validatedData;
+      const range = this.rangeFromRequest(req);
       const data = await this.analyticsService.getExpensesHistory({
-        fromDate: from_date ? new Date(from_date) : undefined,
-        toDate: to_date ? new Date(to_date) : undefined,
+        ...range,
         limit: limit ?? 50,
       });
       res.json(APIResponse.success('Expenses history', data));

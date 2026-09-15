@@ -1,6 +1,16 @@
 import { injectable, inject } from 'tsyringe';
 import { REPOSITORY_TOKENS } from '../../di/repository.tokens';
 import { IAnalyticsRepository } from '../../interfaces/repositories/IAnalyticsRepository';
+import {
+  AnalyticsPeriod,
+  resolveAnalyticsDateRange,
+} from '../../utils/analyticsPeriod';
+
+export interface AnalyticsRangeInput {
+  period?: AnalyticsPeriod;
+  fromDate?: Date;
+  toDate?: Date;
+}
 
 @injectable()
 export class AdminAnalyticsService {
@@ -8,16 +18,22 @@ export class AdminAnalyticsService {
     @inject(REPOSITORY_TOKENS.IAnalyticsRepository) private analyticsRepo: IAnalyticsRepository,
   ) {}
 
+  private resolveRange(input: AnalyticsRangeInput) {
+    return resolveAnalyticsDateRange(input);
+  }
+
   getDashboard() {
     return this.analyticsRepo.getDashboardAnalytics();
   }
 
-  getRevenue(fromDate: Date, toDate: Date) {
+  getRevenue(input: AnalyticsRangeInput) {
+    const { fromDate, toDate } = this.resolveRange(input);
     return this.analyticsRepo.getRevenueByDay(fromDate, toDate);
   }
 
-  getTopProducts(limit: number) {
-    return this.analyticsRepo.getTopProducts(limit);
+  getTopProducts(limit: number, input?: AnalyticsRangeInput) {
+    const range = input ? this.resolveRange(input) : undefined;
+    return this.analyticsRepo.getTopProducts(limit, range);
   }
 
   getCustomers(sort: 'lifetime_value' | 'order_count', limit: number) {
@@ -41,23 +57,37 @@ export class AdminAnalyticsService {
 
   getPaymentHistory(filters: {
     status?: string;
+    period?: AnalyticsPeriod;
     fromDate?: Date;
     toDate?: Date;
     limit: number;
   }) {
-    return this.analyticsRepo.getPaymentHistory(filters);
+    const { fromDate, toDate } = this.resolveRange(filters);
+    return this.analyticsRepo.getPaymentHistory({
+      status: filters.status,
+      fromDate,
+      toDate,
+      limit: filters.limit,
+    });
   }
 
-  getFinancialSummary(fromDate?: Date, toDate?: Date) {
+  getFinancialSummary(input: AnalyticsRangeInput) {
+    const { fromDate, toDate } = this.resolveRange(input);
     return this.analyticsRepo.getFinancialPeriodSummary(fromDate, toDate);
   }
 
   getExpensesHistory(filters: {
+    period?: AnalyticsPeriod;
     fromDate?: Date;
     toDate?: Date;
     limit: number;
   }) {
-    return this.analyticsRepo.getExpensesHistory(filters);
+    const { fromDate, toDate } = this.resolveRange(filters);
+    return this.analyticsRepo.getExpensesHistory({
+      fromDate,
+      toDate,
+      limit: filters.limit,
+    });
   }
 
   logVisit(data: {
