@@ -16,6 +16,7 @@ import {
 } from '../../utils/cursorPagination';
 import { Order } from '../../models/Order';
 import { moderateCombinedText } from '../moderation/ArabicModerationService';
+import { joinPublicUser } from '../../utils/publicUser';
 
 @injectable()
 export class EngagementService {
@@ -67,9 +68,7 @@ export class EngagementService {
       throw new AppError(400, 'Invalid or malformed cursor');
     }
 
-    const qb = this.reviewRepo()
-      .createQueryBuilder('r')
-      .leftJoinAndSelect('r.customer', 'customer')
+    const qb = joinPublicUser(this.reviewRepo().createQueryBuilder('r'), 'r.customer', 'customer')
       .leftJoinAndSelect('r.rating', 'rating')
       .where('r.product_id = :productId', { productId })
       .andWhere('r.moderation_status = :status', { status: 'approved' });
@@ -156,9 +155,7 @@ export class EngagementService {
       throw new AppError(400, 'Invalid or malformed cursor');
     }
 
-    const qb = this.questionRepo()
-      .createQueryBuilder('q')
-      .leftJoinAndSelect('q.customer', 'customer')
+    const qb = joinPublicUser(this.questionRepo().createQueryBuilder('q'), 'q.customer', 'customer')
       .where('q.product_id = :productId', { productId })
       .andWhere('q.is_published = true');
 
@@ -170,11 +167,13 @@ export class EngagementService {
 
     const withAnswers = await Promise.all(
       page.items.map(async (q) => {
-        const answers = await this.answerRepo().find({
-          where: { question_id: q.id, is_published: true, moderation_status: 'approved' },
-          relations: ['answered_by'],
-          order: { created_at: 'ASC' },
-        });
+        const answersQuery = this.answerRepo()
+          .createQueryBuilder('a')
+          .where('a.question_id = :questionId', { questionId: q.id })
+          .andWhere('a.is_published = true')
+          .andWhere('a.moderation_status = :status', { status: 'approved' })
+          .orderBy('a.created_at', 'ASC');
+        const answers = await joinPublicUser(answersQuery, 'a.answered_by', 'answered_by').getMany();
         return { ...q, answers };
       }),
     );

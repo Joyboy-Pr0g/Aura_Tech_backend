@@ -7,16 +7,16 @@ import {
   IBlogRepository,
   UpdateBlogDto,
 } from '../../interfaces/repositories/IBlogRepository';
+import { joinPublicUser } from '../../utils/publicUser';
 
 @injectable()
 export class BlogRepository implements IBlogRepository {
   private repo = AppDataSource.getRepository(Blog);
 
   findAll(): Promise<Blog[]> {
-    return this.repo.find({
-      relations: ['author'],
-      order: { created_at: 'DESC' },
-    });
+    return joinPublicUser(this.repo.createQueryBuilder('b'), 'b.author', 'author')
+      .orderBy('b.created_at', 'DESC')
+      .getMany();
   }
 
   findPublished(limit = 50): Promise<Blog[]> {
@@ -28,17 +28,18 @@ export class BlogRepository implements IBlogRepository {
   }
 
   findBySlug(slug: string, publishedOnly = false): Promise<Blog | null> {
-    return this.repo.findOne({
-      where: publishedOnly ? { slug, is_published: true } : { slug },
-      relations: ['author'],
-    });
+    const qb = joinPublicUser(this.repo.createQueryBuilder('b'), 'b.author', 'author')
+      .where('b.slug = :slug', { slug });
+    if (publishedOnly) {
+      qb.andWhere('b.is_published = true');
+    }
+    return qb.getOne();
   }
 
   findById(id: string): Promise<Blog | null> {
-    return this.repo.findOne({
-      where: { id },
-      relations: ['author'],
-    });
+    return joinPublicUser(this.repo.createQueryBuilder('b'), 'b.author', 'author')
+      .where('b.id = :id', { id })
+      .getOne();
   }
 
   async create(data: CreateBlogDto): Promise<Blog> {

@@ -270,7 +270,7 @@ export class AuthService {
     email: string;
     password: string;
   }): Promise<{ token: string; user: SafeUser }> {
-    const user = await this.authRepo.findByEmail(data.email);
+    const user = await this.authRepo.findByEmailWithPassword(data.email);
     if (!user) throw new AppError(401, 'Invalid credentials');
 
     if (user.status === UserStatus.BLOCKED) {
@@ -349,7 +349,7 @@ export class AuthService {
     userId: string,
     data: { current_password: string; new_password: string },
   ): Promise<void> {
-    const user = await this.authRepo.findById(userId);
+    const user = await this.authRepo.findByIdWithPassword(userId);
     if (!user || user.deleted_at) throw new AppError(404, 'User not found');
 
     if (!(await comparePassword(data.current_password, user.password_hash))) {

@@ -21,7 +21,7 @@ export class User {
   @Index()
   email: string;
 
-  @Column({ name: 'password_hash' })
+  @Column({ name: 'password_hash', select: false })
   password_hash: string;
 
   @Column({ unique: true, nullable: true, type: 'varchar' })
@@ -44,4 +44,9 @@ export class User {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updated_at: Date;
+
+  toJSON(): Omit<User, 'password_hash' | 'toJSON'> {
+    const { password_hash: _passwordHash, ...safe } = this;
+    return safe;
+  }
 }

@@ -20,7 +20,7 @@ export interface AdminCreateUserDto {
   role: Role;
 }
 
-export type SafeUser = Omit<User, 'password_hash'>;
+export type SafeUser = Omit<User, 'password_hash' | 'toJSON'>;
 
 export interface UserFilters {
   role?: Role;
@@ -32,8 +32,10 @@ export interface UserFilters {
 
 export interface IAuthRepository {
   findByEmail(email: string): Promise<User | null>;
+  findByEmailWithPassword(email: string): Promise<User | null>;
   findByPhone(phone: string): Promise<User | null>;
   findById(id: string): Promise<User | null>;
+  findByIdWithPassword(id: string): Promise<User | null>;
   create(dto: CreateUserDto): Promise<User>;
   update(id: string, data: Partial<CreateUserDto>): Promise<User | null>;
   existsByEmail(email: string): Promise<boolean>;

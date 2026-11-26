@@ -1,5 +1,4 @@
 import { injectable } from 'tsyringe';
-import { In } from 'typeorm';
 import { AppDataSource } from '../../config/database';
 import { ProductReview } from '../../models/ProductReview';
 import { ProductRating } from '../../models/ProductRating';
@@ -17,6 +16,7 @@ import {
   DEFAULT_LIMIT,
 } from '../../utils/cursorPagination';
 import { AppError } from '../../core/errors/AppError';
+import { joinPublicUser } from '../../utils/publicUser';
 
 @injectable()
 export class EngagementRepository implements IEngagementRepository {
@@ -37,23 +37,30 @@ export class EngagementRepository implements IEngagementRepository {
   }
 
   async findProductDetailEngagement(productId: string): Promise<ProductDetailEngagement> {
+    const reviewsQuery = this.reviewRepo
+      .createQueryBuilder('r')
+      .leftJoinAndSelect('r.rating', 'rating')
+      .where('r.product_id = :productId', { productId })
+      .andWhere('r.moderation_status = :status', { status: 'approved' })
+      .orderBy('r.created_at', 'DESC')
+      .addOrderBy('r.id', 'DESC');
+
+    const questionsQuery = this.questionRepo
+      .createQueryBuilder('q')
+      .where('q.product_id = :productId', { productId })
+      .andWhere('q.is_published = true')
+      .orderBy('q.created_at', 'DESC')
+      .addOrderBy('q.id', 'DESC');
+
     const [reviews, avgResult, questions] = await Promise.all([
-      this.reviewRepo.find({
-        where: { product_id: productId, moderation_status: 'approved' },
-        relations: ['customer', 'rating'],
-        order: { created_at: 'DESC', id: 'DESC' },
-      }),
+      joinPublicUser(reviewsQuery, 'r.customer', 'customer').getMany(),
       this.ratingRepo
         .createQueryBuilder('rt')
         .select('AVG(rt.rating)', 'avg')
         .addSelect('COUNT(*)', 'count')
         .where('rt.product_id = :productId', { productId })
         .getRawOne<{ avg: string; count: string }>(),
-      this.questionRepo.find({
-        where: { product_id: productId, is_published: true },
-        relations: ['customer'],
-        order: { created_at: 'DESC', id: 'DESC' },
-      }),
+      joinPublicUser(questionsQuery, 'q.customer', 'customer').getMany(),
     ]);
 
     const questionsWithAnswers = await this.attachAnswers(questions, false);
@@ -75,19 +82,19 @@ export class EngagementRepository implements IEngagementRepository {
   }
 
   async findQuestionsByCustomerId(customerId: string): Promise<ProductQuestion[]> {
-    const questions = await this.questionRepo.find({
-      where: { customer_id: customerId },
-      relations: ['product', 'customer'],
-      order: { created_at: 'DESC', id: 'DESC' },
-    });
+    const qb = this.questionRepo
+      .createQueryBuilder('q')
+      .leftJoinAndSelect('q.product', 'product')
+      .where('q.customer_id = :customerId', { customerId })
+      .orderBy('q.created_at', 'DESC')
+      .addOrderBy('q.id', 'DESC');
+    const questions = await joinPublicUser(qb, 'q.customer', 'customer').getMany();
     return this.attachAnswers(questions, true);
   }
 
   async findQuestionsForAdmin(filters: AdminQuestionFilters): Promise<CursorListResult<ProductQuestion>> {
     const { search, limit = DEFAULT_LIMIT, cursor } = filters;
-    const qb = this.questionRepo
-      .createQueryBuilder('q')
-      .leftJoinAndSelect('q.customer', 'customer')
+    const qb = joinPublicUser(this.questionRepo.createQueryBuilder('q'), 'q.customer', 'customer')
       .leftJoinAndSelect('q.product', 'product');
 
     if (search?.trim()) {
@@ -145,17 +152,18 @@ export class EngagementRepository implements IEngagementRepository {
     if (questions.length === 0) return [];
 
     const questionIds = questions.map((question) => question.id);
-    const answers = await this.answerRepo.find({
-      where: forAdmin
-        ? { question_id: In(questionIds) }
-        : {
-            question_id: In(questionIds),
-            is_published: true,
-            moderation_status: 'approved',
-          },
-      relations: ['answered_by'],
-      order: { created_at: 'ASC' },
-    });
+    const answersQuery = this.answerRepo
+      .createQueryBuilder('a')
+      .where('a.question_id IN (:...questionIds)', { questionIds })
+      .orderBy('a.created_at', 'ASC');
+
+    if (!forAdmin) {
+      answersQuery
+        .andWhere('a.is_published = true')
+        .andWhere('a.moderation_status = :status', { status: 'approved' });
+    }
+
+    const answers = await joinPublicUser(answersQuery, 'a.answered_by', 'answered_by').getMany();
 
     const answersByQuestionId = new Map<string, QuestionAnswer[]>();
     for (const answer of answers) {

@@ -11,6 +11,7 @@ import {
   DEFAULT_LIMIT,
   paginateByCursor,
 } from '../../utils/cursorPagination';
+import { joinUserColumns, USER_CONTACT_COLUMNS } from '../../utils/publicUser';
 
 @injectable()
 export class OrderRepository implements IOrderRepository {
@@ -33,10 +34,18 @@ export class OrderRepository implements IOrderRepository {
   }
 
   async findByCustomerIdAndOrderNumber(customerId: string, orderNumber: string): Promise<Order | null> {
-    return this.repo.findOne({
-      where: { customer_id: customerId, order_number: orderNumber },
-      relations: ['items', 'items.product', 'items.variant', 'payment', 'payment.payment_method', 'customer', 'shipping_fee', 'shipping_address'],
-    });
+    const qb = this.repo
+      .createQueryBuilder('o')
+      .leftJoinAndSelect('o.items', 'items')
+      .leftJoinAndSelect('items.product', 'product')
+      .leftJoinAndSelect('items.variant', 'variant')
+      .leftJoinAndSelect('o.payment', 'payment')
+      .leftJoinAndSelect('payment.payment_method', 'payment_method')
+      .leftJoinAndSelect('o.shipping_fee', 'shipping_fee')
+      .leftJoinAndSelect('o.shipping_address', 'shipping_address')
+      .where('o.customer_id = :customerId', { customerId })
+      .andWhere('o.order_number = :orderNumber', { orderNumber });
+    return joinUserColumns(qb, 'o.customer', 'customer', USER_CONTACT_COLUMNS).getOne();
   }
 
   async findByOrderNumber(orderNumber: string): Promise<Order | null> {

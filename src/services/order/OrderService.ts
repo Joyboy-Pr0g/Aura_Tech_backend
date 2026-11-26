@@ -211,7 +211,7 @@ export class OrderService {
 
     void this.activityMonitor.recordActivity(customerId, 'order_placed');
 
-    const fullOrder = await this.orderRepo.findById(order.savedOrder.id);
+    const fullOrder = await this.orderRepo.findByCustomerIdAndOrderNumber(customerId, order.savedOrder.order_number);
     return fullOrder ?? order.savedOrder;
   }
 

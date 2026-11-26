@@ -16,6 +16,24 @@ export class AuthRepository implements IAuthRepository {
     return this.repo.findOne({ where: { email, deleted_at: IsNull() } });
   }
 
+  async findByEmailWithPassword(email: string): Promise<User | null> {
+    return this.repo
+      .createQueryBuilder('u')
+      .addSelect('u.password_hash')
+      .where('u.email = :email', { email })
+      .andWhere('u.deleted_at IS NULL')
+      .getOne();
+  }
+
+  async findByIdWithPassword(id: string): Promise<User | null> {
+    return this.repo
+      .createQueryBuilder('u')
+      .withDeleted()
+      .addSelect('u.password_hash')
+      .where('u.id = :id', { id })
+      .getOne();
+  }
+
   async findByPhone(phone: string): Promise<User | null> {
     return this.repo.findOne({ where: { phone, deleted_at: IsNull() } });
   }

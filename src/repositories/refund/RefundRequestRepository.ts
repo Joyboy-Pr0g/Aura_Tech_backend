@@ -10,6 +10,7 @@ import {
   decodeCreatedAtIdCursor,
   paginateByCursor,
 } from '../../utils/cursorPagination';
+import { joinPublicUser } from '../../utils/publicUser';
 
 @injectable()
 export class RefundRequestRepository implements IRefundRequestRepository {
@@ -23,10 +24,12 @@ export class RefundRequestRepository implements IRefundRequestRepository {
   }
 
   async findByOrderId(orderId: string): Promise<RefundRequest | null> {
-    return this.repo().findOne({
-      where: { order_id: orderId },
-      relations: ['order', 'customer', 'processed_by_admin'],
-    });
+    const qb = this.repo()
+      .createQueryBuilder('rr')
+      .leftJoinAndSelect('rr.order', 'order')
+      .where('rr.order_id = :orderId', { orderId });
+    joinPublicUser(qb, 'rr.customer', 'customer');
+    return joinPublicUser(qb, 'rr.processed_by_admin', 'processed_by_admin').getOne();
   }
 
   async create(data: Partial<RefundRequest>): Promise<RefundRequest> {
