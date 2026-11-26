@@ -1,15 +1,17 @@
+import { ENGLISH_WEBSITE_SETTINGS } from './englishCatalogSeed';
+
+/** Runtime fallback when no website_settings row exists (matches English seed). */
 export const DEFAULT_WEBSITE_SETTINGS = {
-  title: 'AURA TECH',
-  website_email: 'hello@auratech.com',
-  website_phone: '+967 777 000 000',
-  facebook: 'https://facebook.com/auratech',
-  instagram: 'https://instagram.com/auratech',
-  whatsapp: '+967777000000',
-  tiktok: 'https://tiktok.com/@auratech',
-  description:
-    'Your premier mobile gaming store in Yemen. Premium devices, accessories, and expert support.',
-  header_logo_public_id: null as string | null,
-  header_logo_url: null as string | null,
-  footer_logo_public_id: null as string | null,
-  footer_logo_url: null as string | null,
+  title: ENGLISH_WEBSITE_SETTINGS.title,
+  website_email: ENGLISH_WEBSITE_SETTINGS.website_email,
+  website_phone: ENGLISH_WEBSITE_SETTINGS.website_phone,
+  facebook: ENGLISH_WEBSITE_SETTINGS.facebook,
+  instagram: ENGLISH_WEBSITE_SETTINGS.instagram,
+  whatsapp: ENGLISH_WEBSITE_SETTINGS.whatsapp,
+  tiktok: ENGLISH_WEBSITE_SETTINGS.tiktok,
+  description: ENGLISH_WEBSITE_SETTINGS.description,
+  header_logo_public_id: ENGLISH_WEBSITE_SETTINGS.header_logo_public_id,
+  header_logo_url: ENGLISH_WEBSITE_SETTINGS.header_logo_url,
+  footer_logo_public_id: ENGLISH_WEBSITE_SETTINGS.footer_logo_public_id,
+  footer_logo_url: ENGLISH_WEBSITE_SETTINGS.footer_logo_url,
 };

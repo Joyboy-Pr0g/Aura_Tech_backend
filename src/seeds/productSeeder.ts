@@ -1,3 +1,4 @@
+/** English product catalog (~100 items). All titles and descriptions are in English. */
 import { AppDataSource } from '../config/database';
 import { Category } from '../models/Category';
 import { Product, ProductImage } from '../models/Product';

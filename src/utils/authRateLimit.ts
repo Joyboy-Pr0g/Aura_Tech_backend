@@ -132,10 +132,6 @@ export async function clearVerifyFailures(scope: AuthRateScope, email: string): 
   await redis.del(`auth:rl:verify_fail:${scope}:${normalizedEmail}`);
 }
 
-export function getRequestIp(req: { ip?: string; headers: Record<string, unknown> }): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') {
-    return forwarded.split(',')[0]?.trim() || 'unknown';
-  }
+export function getRequestIp(req: { ip?: string }): string {
   return req.ip ?? 'unknown';
 }

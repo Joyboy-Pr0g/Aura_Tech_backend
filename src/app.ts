@@ -7,6 +7,7 @@ import compression from 'compression';
 import rateLimit, { type RateLimitExceededEventHandler } from 'express-rate-limit';
 import routes from './routes';
 import { errorHandler } from './middleware/errorHandler';
+import { isInternalRequest } from './utils/isInternalRequest';
 import { APIResponse } from './core/responses/api-response';
 
 const app = express();
@@ -34,7 +35,7 @@ app.use(
     standardHeaders: true,
     legacyHeaders: false,
     handler: jsonRateLimitHandler,
-    skip: (req) => req.originalUrl.startsWith('/api/visits'),
+    skip: (req) => req.originalUrl.startsWith('/api/visits') || isInternalRequest(req),
   }),
 );
 
@@ -69,12 +70,7 @@ app.use(
         return `visit:${visitorId.trim()}`;
       }
 
-      const forwarded = req.headers['x-forwarded-for'];
-      const clientIp = typeof forwarded === 'string'
-        ? forwarded.split(',')[0]?.trim()
-        : req.ip;
-
-      return clientIp ?? 'unknown';
+      return req.ip ?? 'unknown';
     },
   }),
 );

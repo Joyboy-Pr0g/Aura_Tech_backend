@@ -1,38 +1,45 @@
 import { AppDataSource } from '../config/database';
 import { PaymentMethod } from '../models/PaymentMethod';
+import { ENGLISH_PAYMENT_METHODS } from '../constants/englishCatalogSeed';
 
-const paymentMethods = [
-  {
-    name: 'Bank of Yemen - Main Account',
-    account_holder_name: 'AURA TECH LLC',
-    bank_name: 'Bank of Yemen',
-    account_number: '1234567890',
-    iban: 'YE1234567890123456789012',
-    swift_code: 'BOYMYE22',
-    description: 'Primary bank transfer account for customer payments',
-  },
-  {
-    name: 'CAC Bank - Secondary',
-    account_holder_name: 'AURA TECH LLC',
-    bank_name: 'CAC Bank',
-    account_number: '9876543210',
-    iban: null,
-    swift_code: null,
-    description: 'Backup payment account',
-  },
-];
+export type SeedPaymentMethodsOptions = {
+  /** When true, refresh English fields on existing rows matched by name. */
+  overwrite?: boolean;
+};
 
-export async function seedPaymentMethods(): Promise<void> {
+export async function seedPaymentMethods(options: SeedPaymentMethodsOptions = {}): Promise<void> {
+  const overwrite = options.overwrite ?? false;
   const repo = AppDataSource.getRepository(PaymentMethod);
 
-  for (const pm of paymentMethods) {
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  for (const pm of ENGLISH_PAYMENT_METHODS) {
     const existing = await repo.findOne({ where: { name: pm.name } });
-    if (existing) {
-      console.log(`⏭️  Skipped payment method (exists): ${pm.name}`);
+    if (!existing) {
+      await repo.save(repo.create(pm));
+      created++;
       continue;
     }
 
-    await repo.save(repo.create(pm));
-    console.log(`✅ Created payment method: ${pm.name}`);
+    if (overwrite) {
+      await repo.update(existing.id, {
+        account_holder_name: pm.account_holder_name,
+        bank_name: pm.bank_name,
+        account_number: pm.account_number,
+        iban: pm.iban,
+        swift_code: pm.swift_code,
+        description: pm.description,
+        is_active: pm.is_active,
+      });
+      updated++;
+    } else {
+      skipped++;
+    }
   }
+
+  console.log(
+    `✅ Payment methods seed: ${created} created, ${updated} updated, ${skipped} skipped (${ENGLISH_PAYMENT_METHODS.length} in catalog).`,
+  );
 }

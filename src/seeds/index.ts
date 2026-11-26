@@ -7,6 +7,8 @@ import { seedUsersData } from './userSeeder';
 import { seedCategories } from './categorySeeder';
 import { seedProducts } from './productSeeder';
 import { seedPaymentMethods } from './paymentMethodSeeder';
+import { seedWebsiteSettings } from './websiteSettingsSeeder';
+import { seedShippingFees } from './shippingFeeSeeder';
 import { seedCoupons } from './couponSeeder';
 
 async function runAll(): Promise<void> {
@@ -21,11 +23,17 @@ async function runAll(): Promise<void> {
   console.log('\n── Categories ──');
   await seedCategories();
 
+  console.log('\n── Website Settings ──');
+  await seedWebsiteSettings({ overwrite: true });
+
+  console.log('\n── Shipping Fees ──');
+  await seedShippingFees({ overwrite: true });
+
   console.log('\n── Products ──');
   await seedProducts();
 
   console.log('\n── Payment Methods ──');
-  await seedPaymentMethods();
+  await seedPaymentMethods({ overwrite: true });
 
   console.log('\n── Coupons ──');
   await seedCoupons();

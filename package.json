@@ -12,6 +12,7 @@
     "migration:run": "npm run typeorm -- migration:run -d data-source.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d data-source.ts",
     "seed": "ts-node --transpile-only src/seeds/index.ts",
+    "seed:english-catalog": "ts-node --transpile-only src/seeds/runEnglishCatalogSeed.ts",
     "seed:users": "ts-node --transpile-only src/seeds/userSeeder.ts",
     "seed:payment-bridge": "ts-node --transpile-only src/seeds/runPaymentBridgeSeed.ts"
   },
