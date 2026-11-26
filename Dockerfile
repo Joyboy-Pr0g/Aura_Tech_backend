@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 # AURA TECH Backend — production image (Hetzner CX23 optimized)
-# Node 20 LTS · multi-stage · non-root · internal port 5000
+# Node 24 LTS · multi-stage · non-root · internal port 5000
 
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY src ./src
 
 RUN npm run build
 
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 
